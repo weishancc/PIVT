@@ -50,7 +50,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 * A running Kubernetes cluster, Minikube should also work, but not tested
 * [HL Fabric binaries](https://hyperledger-fabric.readthedocs.io/en/release-1.4/install.html)
 * [Helm](https://github.com/helm/helm/releases/tag/v2.11.0), developed with 2.11, newer 2.xx versions should also work
-* [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://mikefarah.github.io/yq/) 2.6+
+* [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://pypi.org/project/yq/) 2.6+
 * [Argo](https://github.com/argoproj/argo/blob/master/demo.md), both CLI and Controller
 * [Minio](https://github.com/argoproj/argo/blob/master/ARTIFACT_REPO.md), only required for backup/restore flows
 * Run all the commands in *fabric-kube* folder
