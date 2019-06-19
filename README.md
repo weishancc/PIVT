@@ -1,5 +1,5 @@
 # Hyperledger Fabric meets Kubernetes
-![Fabric Meets K8S](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/fabric_meets_k8s.png)
+![Fabric Meets K8S](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/fabric_meets_k8s.png)
 
 * [What is this?](#what-is-this)
 * [Who made this?](#who-made-this)
