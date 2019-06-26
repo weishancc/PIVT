@@ -11,14 +11,16 @@
   * [Creating channels](#creating-channels)
   * [Installing chaincodes](#installing-chaincodes)
   * [Scaled-up Kafka network](#scaled-up-kafka-network)
+  * [Scaled-up Raft network](#scaled-up-raft-network)
 * [Configuration](#configuration)
+* [TLS](#tls)
 * [Backup-Restore](#backup-restore)
   * [Requirements](#backup-restore-requirements)
   * [Flow](#backup-restore-flow)
   * [Backup](#backup)
   * [Restore](#restore)
 * [Limitations](#limitations)
-* [FAQ](#faq)
+* [FAQ and more](#faq-and-more)
 * [Conclusion](#conclusion)
 
 ## [What is this?](#what-is-this)
@@ -61,9 +63,14 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 
 ![Simple Network](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/HL_in_Kube_simple.png)
 
-### Scaled Up Network Architecture
+### Scaled Up Kafka Network Architecture
 
 ![Scaled Up Network](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/HL_in_Kube_scaled.png)
+
+### Scaled Up Raft Network Architecture
+
+![Scaled Up Raft Network](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/HL_in_Kube_raft.png)
+**Note:** Due to TLS, transparent load balancing is not possible with Raft orderer as of Fabric 1.4.1.
 
 ## [Go Over Samples](#go-over-samples)
 
@@ -88,14 +95,14 @@ This script:
 
 Now, we are ready to launch the network:
 ```
-helm install --name hlf-kube -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml  ./hlf-kube
+helm install ./hlf-kube --name hlf-kube -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml
 ```
 This chart creates all the above mentioned secrets, pods, services, etc. cross configures them 
 and launches the network in unpopulated state.
 
 Wait for all pods are up and running:
 ```
-kubectl  get pod --watch
+kubectl get pod --watch
 ```
 In a few seconds, pods will come up:
 ![Screenshot_pods](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/Screenshot_pods.png)
@@ -105,7 +112,7 @@ Congrulations you have a running HL Fabric network in Kubernetes!
 
 Next lets create channels, join peers to channels and update channels for Anchor peers:
 ```
-helm template -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml channel-flow/ | argo submit  -  --watch
+helm template channel-flow/ -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml | argo submit - --watch
 ```
 Wait for the flow to complete, finally you will see something like this:
 ![Screenshot_channel_flow](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/Screenshot_channel_flow.png)
@@ -114,7 +121,7 @@ Wait for the flow to complete, finally you will see something like this:
 
 Next lets install/instantiate/invoke chaincodes
 ```
-helm template -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml chaincode-flow/ | argo submit  -  --watch
+helm template chaincode-flow/ -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml | argo submit - --watch
 ```
 Wait for the flow to complete, finally you will see something like this:
 ![Screenshot_chaincode_flow](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/Screenshot_chaincode_flow.png)
@@ -128,7 +135,7 @@ Lets assume you had updated chaincodes and want to upgrade them in the Fabric ne
 ```
 Then make sure chaincode ConfigMaps are updated with new chaincode tar archives:
 ```
-helm upgrade hlf-kube -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml  ./hlf-kube
+helm upgrade hlf-kube ./hlf-kube -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml  
 ```
 Or alternatively you can update chaincode ConfigMaps directly:
 ```
@@ -137,14 +144,14 @@ helm template -f samples/simple/network.yaml -x templates/chaincode-configmap.ya
 
 Next invoke chaincode flow again with a bit different settings:
 ```
-helm template -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml -f chaincode-flow/values.upgrade.yaml --set chaincode.version=2.0 chaincode-flow/ | argo submit  -  --watch
+helm template chaincode-flow/ -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml -f chaincode-flow/values.upgrade.yaml --set chaincode.version=2.0 | argo submit - --watch
 ```
 All chaincodes are upgraded to version 2.0!
 ![Screenshot_chaincode_upgade_all](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/Screenshot_chaincode_upgade_all.png)
 
 Lets upgrade only the chaincode named `very-simple` to version 3.0:
 ```
-helm template -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml -f chaincode-flow/values.upgrade.yaml --set chaincode.version=3.0 --set flow.chaincode.include={very-simple} chaincode-flow/ | argo submit  -  --watch
+helm template chaincode-flow/ -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml -f chaincode-flow/values.upgrade.yaml --set chaincode.version=3.0 --set flow.chaincode.include={very-simple} | argo submit - --watch
 ```
 Chaincode `very-simple` is upgarded to version 3.0!
 ![Screenshot_chaincode_upgade_single](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/Screenshot_chaincode_upgade_single.png)
@@ -167,11 +174,11 @@ Then create necessary stuff:
 ```
 Lets launch our scaled up Fabric network:
 ```
-helm install --name hlf-kube -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml -f samples/scaled-kafka/values.yaml ./hlf-kube
+helm install ./hlf-kube --name hlf-kube -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml -f samples/scaled-kafka/values.yaml
 ```
 Again lets wait for all pods are up and running:
 ```
-kubectl  get pod --watch
+kubectl get pod --watch
 ```
 This time, in particular wait for 4 Kafka pods and 3 ZooKeeper pods are running and `ready` count is 1/1. 
 Kafka pods may crash and restart a couple of times, this is normal as ZooKeeper pods are not ready yet, 
@@ -184,11 +191,106 @@ and 2 peers per organization. Your application can use them without even noticin
 
 Lets create the channels:
 ```
-helm template -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml channel-flow/ | argo submit  -  --watch
+helm template channel-flow/ -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml | argo submit - --watch
 ```
 And install chaincodes:
 ```
-helm template -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml chaincode-flow/ | argo submit  -  --watch
+helm template chaincode-flow/ -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml | argo submit - --watch
+```
+### [Scaled-up Raft network](#scaled-up-raft-network)
+Now, lets launch a scaled up network based on three Raft orderer nodes spanning two Orderer organizations. This sample also demonstrates how to enable TLS and use actual domain names for peers and orderers instead of internal Kubernetes service names. Enabling TLS globally is mandatory as of Fabric 1.4.1. Hopefully will be resolved [soon](https://jira.hyperledger.org/browse/FAB-15648). 
+
+_For TLS, we need [hostAliases support](https://github.com/argoproj/argo/issues/1265) in Argo workflows and also in Argo CLI, which is implemented but not released yet. You can install Argo controller from Argo repo with the below command. We have built Argo CLI binary from Argo repo for Linux which can be downloaded from [here](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/argo/argo-linux-amd64)._ **Use at your own risk!**
+
+```
+kubectl apply -n argo -f https://github.com/argoproj/argo/blob/master/manifests/install.yaml
+```
+
+Compare [scaled-raft-tls/configtx.yaml](fabric-kube/samples/scaled-raft-tls/configtx.yaml) with other samples, in particular it uses actual domain names like _peer0.atlantis.com_ instead of internal Kubernetes service names like _hlf-peer--atlantis--peer0_. This is necessary for enabling TLS since otherwise TLS certificates won't match service names.
+
+Also in [network.yaml](fabric-kube/samples/scaled-raft-tls/network.yaml) file, there are two additional settings. As we pass this file to all Helm charts, it's convenient to put these settings into this file.
+```
+tlsEnabled: true
+useActualDomains: true
+```
+
+First tear down everything:
+```
+argo delete --all
+helm delete hlf-kube --purge
+```
+Wait a bit until all pods are terminated:
+```
+kubectl  get pod --watch
+```
+Then create necessary stuff:
+```
+./init.sh ./samples/scaled-raft-tls/ ./samples/chaincode/
+```
+Lets launch our Raft based Fabric network in _broken_ state:
+```
+helm install ./hlf-kube --name hlf-kube -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml
+```
+The pods will start but they cannot communicate to each other since domain names are unknown.
+
+Run this command to collect the host aliases:
+```
+kubectl get svc -l addToHostAliases=true -o jsonpath='{"hostAliases:\n"}{range..items[*]}- ip: {.spec.clusterIP}{"\n"}  hostnames: [{.metadata.labels.fqdn}]{"\n"}{end}' > samples/scaled-raft-tls/hostAliases.yaml
+```
+
+Or this one, which is much convenient:
+```
+./collect_host_aliases.sh ./samples/scaled-raft-tls/ 
+```
+
+Let's check the created hostAliases.yaml file.
+```
+cat samples/scaled-raft-tls/hostAliases.yaml
+```
+
+The output will be something like:
+```
+hostAliases:
+- ip: 10.0.110.93
+  hostnames: [orderer0.groeifabriek.nl]
+- ip: 10.0.32.65
+  hostnames: [orderer1.groeifabriek.nl]
+- ip: 10.0.13.191
+  hostnames: [orderer0.pivt.nl]
+- ip: 10.0.88.5
+  hostnames: [peer0.atlantis.com]
+- ip: 10.0.88.151
+  hostnames: [peer1.atlantis.com]
+- ip: 10.0.217.95
+  hostnames: [peer10.aptalkarga.tr]
+- ip: 10.0.252.19
+  hostnames: [peer9.aptalkarga.tr]
+- ip: 10.0.64.145
+  hostnames: [peer0.nevergreen.nl]
+- ip: 10.0.15.9
+  hostnames: [peer1.nevergreen.nl]
+```
+The IPs are internal ClusterIPs of related services. Important point here is, as opposed to pod ClusterIPs, service ClusterIPs are stable, they won't change if service is not deleted and re-created.
+
+
+Next, let's update the network with this host aliases information. These entries goes into pods' `/etc/hosts` file via Pod [hostAliases](https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/) spec.
+```
+helm upgrade hlf-kube ./hlf-kube -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml  
+```
+
+Again lets wait for all pods are up and running:
+```
+kubectl get pod --watch
+```
+Congrulations you have a running scaled up HL Fabric network in Kubernetes, with 3 Raft orderer nodes spanning 2 Orderer organizations and 2 peers per organization. But unfortunately, due to TLS, your application cannot use them with transparent load balancing, you need to connect to relevant peer and orderer services separately.
+
+Lets create the channels:
+```
+helm template channel-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml | argo submit - --watch
+```
+And install chaincodes:
+```
+helm template chaincode-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml | argo submit - --watch
 ```
 
 ## [Configuration](#configuration)
@@ -255,6 +357,13 @@ network:
 ```
 
 For chart specific configuration, please refer to the comments in the relevant [values.yaml](fabric-kube/hlf-kube/values.yaml) files.
+
+## [TLS](#tls)
+![TLS](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/HL_in_Kube_TLS.png)
+
+Using TLS is a two step process. We first launch the network in broken state, then collect ClusterIPs of services and attach them to pods as DNS entries using pod [hostAliases](https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/) spec.
+
+Important point here is, as opposed to pod ClusterIPs, service ClusterIPs are stable, they won't change if service is not deleted and re-created.
 
 ## [Backup-Restore](#backup-restore)
 
@@ -328,25 +437,16 @@ kubectl  get pod --watch
 
 ### TLS
 
-TLS is not working ATM. 
-
-The reason is, in contrast with Docker, Kubernetes does not allow dot “.” in service names, 
-so we cannot have service names like `atlantis.com`. As the TLS certificates are created for those domain names, 
-there is a mismatch between the service name and the certificate.
-
-If required can be solved by either:
-* Running a DNS server inside Kubernetes and tell Kubernetes use that DNS server for certain domains
-* Making launching HL a two step process, first launch the network, collect IP’s of services, then attach that data as DNS entries to pods
-* Predetermining cluster IP’s and directly attaching them as DNS entries to pods might also be an option but might be error prone due to possible conflicts
+Transparent load balancing is not possible with TLS as of Fabric 1.4.1. So, instead of `Peer-Org`, `Orderer-Org` or `Orderer-LB` services, you need to connect to individual `Peer` and `Orderer` services.
 
 ### Multiple Fabric networks in the same Kubernetes cluster
 
 This is possible but they should be run in different namespaces. We do not use Helm release name in names of components, 
 so if multiple instances of Fabric network is running in the same namespace, names will conflict.
 
-## [FAQ](#faq)
+## [FAQ and more](#faq-and-more)
 
-See [FAQ](FAQ.md) page for further details.
+Please see [FAQ](FAQ.md) page for further details. Also this [post](https://accenture.github.io/blog/2019/06/25/hl-fabric-meets-kubernetes.html) at Accenture's open source blog provides some additional information like motivation, how it works, benefits regarding NFR's, etc.
 
 ## [Conclusion](#conclusion)
 
