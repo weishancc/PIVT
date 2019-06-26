@@ -1,5 +1,8 @@
-{{ $orderer := (printf "hlf-orderer--%s" (index .Values.OrdererOrgs 0).Name | lower) }} 
-{{ $vars:= dict}}
+{{- $ordererOrg := index .Values.OrdererOrgs 0 }}
+{{- $ordererAddress := $.Values.useActualDomains | ternary (printf "%s.%s" (index $ordererOrg.Specs 0).Hostname $ordererOrg.Domain) (printf "hlf-orderer--%s--%s" ($ordererOrg.Name | lower) ((index $ordererOrg.Specs 0).Hostname | lower)) }} 
+{{- $vars:= dict }}
+# useActualDomains: {{ $.Values.useActualDomains }}
+# ordererAddress: {{ $ordererAddress }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
@@ -8,7 +11,21 @@ metadata:
   generateName: hlf-chaincodes-
 spec:
   entrypoint: chaincodes
+
+  # additional entries going into /etc/hosts file
+  {{- if $.Values.hostAliases }}
+  hostAliases:
+  {{- range $i, $alias := $.Values.hostAliases }}
+  - ip: {{ $alias.ip }}
+    hostnames: {{ $alias.hostnames }}
+  {{- end }}
+  {{- end }}{{""}}
+  
   volumes:
+  - name: orderer-tlsca
+    secret:
+      # only use the first orderer
+      secretName: hlf-orderer--{{ $ordererOrg.Name | lower }}-tlsca
 
 {{- range $i, $org := .Values.PeerOrgs }}
 {{- $peerStartIndex := (not $org.Template.Start) | ternary 0 $org.Template.Start | int }}
@@ -237,7 +254,7 @@ spec:
       command: ["sh", "-c", "mkdir -p /chaincode && \
                              tar -xf /hlf_config/chaincode/{{ $chaincode.name }}.tar -C /chaincode && \ 
                              peer chaincode install -p /chaincode/{{ $chaincode.name }} -n {{ $chaincode.name }} \
-                                  -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }} -o {{ $orderer }}:7050"]
+                                  -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }}"]
 
       volumeMounts:
         - mountPath: /etc/hyperledger/fabric/tls/
@@ -249,7 +266,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -292,9 +316,15 @@ spec:
       limit: {{ $.Values.retryCount }}
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer chaincode instantiate -C {{ $channel.name }} -n {{ $chaincode.name }} -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }} -P \"{{ $channel.policy }}\" -o {{ $orderer }}:7050 -c '{\"Args\":[\"\"]}'"]
+      command: ["sh", "-c", "peer chaincode instantiate -C {{ $channel.name }} -n {{ $chaincode.name }} -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }} -P \"{{ $channel.policy }}\" -o {{ $ordererAddress }}:7050 -c '{\"Args\":[\"\"]}' \
+                                {{- if $.Values.tlsEnabled }}
+                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                {{- end }}
+               "]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -302,7 +332,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -344,9 +381,15 @@ spec:
       limit: {{ $.Values.retryCount }}
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer chaincode upgrade -C {{ $channel.name }} -n {{ $chaincode.name }} -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }} -P \"{{ $channel.policy }}\" -o {{ $orderer }}:7050 -c '{\"Args\":[\"\"]}'"]
+      command: ["sh", "-c", "peer chaincode upgrade -C {{ $channel.name }} -n {{ $chaincode.name }} -v {{ $.Values.chaincode.version }} -l {{ $.Values.chaincode.language }} -P \"{{ $channel.policy }}\" -o {{ $ordererAddress }}:7050 -c '{\"Args\":[\"\"]}' \
+                                {{- if $.Values.tlsEnabled }}
+                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                {{- end }}
+               "]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -354,7 +397,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -398,9 +448,15 @@ spec:
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
       # chaincode is packed with tar, first extract it
-      command: ["sh", "-c", "peer chaincode invoke -C {{ $channel.name }} -n {{ $chaincode.name }} -o {{ $orderer }}:7050 -c {{ $.Values.flow.invoke.function | replace "\"" "\\\"" | squote }}"]
+      command: ["sh", "-c", "peer chaincode invoke -C {{ $channel.name }} -n {{ $chaincode.name }} -o {{ $ordererAddress }}:7050 -c {{ $.Values.flow.invoke.function | replace "\"" "\\\"" | squote }} \
+                                {{- if $.Values.tlsEnabled }}
+                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                {{- end }}
+               "]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -408,7 +464,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID

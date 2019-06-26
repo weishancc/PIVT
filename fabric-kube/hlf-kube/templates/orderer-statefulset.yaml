@@ -1,15 +1,17 @@
 {{- range $i, $org := .Values.OrdererOrgs }}
+{{- range $i, $host := $org.Specs }}
+
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: hlf-orderer--{{ $org.Name | lower }}
+  name: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
 spec:
   replicas: {{ $.Values.orderer.replicas }}
   podManagementPolicy: Parallel
-  serviceName: hlf-orderer--{{ $org.Name | lower }}
+  serviceName: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
   selector:
     matchLabels:
-      app: hlf-orderer--{{ $org.Name | lower }}
+      app: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
   volumeClaimTemplates:
   {{- if $.Values.orderer.persistence.enabled }}
   - metadata:
@@ -25,8 +27,9 @@ spec:
   template:
     metadata:
       labels:
-        name: hlf-orderer 
-        app: hlf-orderer--{{ $org.Name | lower }}
+        name: hlf-orderer
+        org: hlf-orderer--{{ $org.Name | lower }}
+        app: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
     spec:
       volumes:
         {{- if not $.Values.orderer.persistence.enabled }}
@@ -37,10 +40,10 @@ spec:
         emptyDir: {}
       - name: orderer-tls
         secret:
-          secretName: hlf-orderer--{{ $org.Name | lower }}-tls
+          secretName: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}-tls
       - name: orderer-msp
         secret:
-          secretName: hlf-orderer--{{ $org.Name | lower }}-msp
+          secretName: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}-msp
           items:
           - key: cert.pem
             path: signcerts/cert.pem
@@ -53,6 +56,14 @@ spec:
       - name: genesis
         secret:
           secretName: hlf-genesis.block
+
+      {{- if $.Values.hostAliases }}
+      hostAliases:
+      {{- range $i, $alias := $.Values.hostAliases }}
+      - ip: {{ $alias.ip }}
+        hostnames: {{ $alias.hostnames }}
+      {{- end }}
+      {{- end }}{{""}}
 
       containers:
 
@@ -154,6 +165,19 @@ spec:
         - name: ORDERER_GENERAL_TLS_ROOTCAS
           value: /var/hyperledger/orderer/tls/ca.crt
 
+        - name: ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY
+          value: /var/hyperledger/orderer/tls/server.key
+        - name: ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE
+          value: /var/hyperledger/orderer/tls/server.crt
+        # - name: ORDERER_GENERAL_CLUSTER_SERVERPRIVATEKEY
+        #   value: /var/hyperledger/orderer/tls/server.key
+        # - name: ORDERER_GENERAL_CLUSTER_SERVERCERTIFICATE
+        #   value: /var/hyperledger/orderer/tls/server.crt
+        # - name: ORDERER_GENERAL_CLUSTER_LISTENPORT
+        #   value: "7059"
+        # - name: ORDERER_GENERAL_CLUSTER_LISTENADDRESS
+        #   value: 0.0.0.0
+
         - name: HFC_LOGGING
           value: '{"info":"console"}'
         - name: GRPC_VERBOSITY
@@ -162,4 +186,5 @@ spec:
           value:  all
       {{- end }} {{- /* if/else backup/restore enabled */ -}}{{""}}
 ---
+{{- end }} {{- /* org.Specs */ -}}
 {{- end }} {{- /* Orgs */ -}}

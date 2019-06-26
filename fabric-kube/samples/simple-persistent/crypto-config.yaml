@@ -8,7 +8,7 @@ OrdererOrgs:
   - Name: Groeifabriek
     Domain: groeifabriek.nl
     Specs:
-      - Hostname: orderer
+      - Hostname: orderer0
 # ---------------------------------------------------------------------------
 # "PeerOrgs" - Definition of organizations managing peer nodes
 # ---------------------------------------------------------------------------

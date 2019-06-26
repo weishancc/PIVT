@@ -9,6 +9,8 @@ metadata:
   name: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}
   labels:
     name: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}
+    fqdn: {{ $peer }}.{{ $org.Domain }}
+    addToHostAliases: "true"
 spec:
   type: ClusterIP
   selector:

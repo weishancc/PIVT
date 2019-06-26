@@ -1,5 +1,8 @@
-{{ $orderer := (printf "hlf-orderer--%s" (index .Values.OrdererOrgs 0).Name | lower) }} 
-{{ $vars:= dict}}
+{{- $ordererOrg := index .Values.OrdererOrgs 0 }}
+{{- $ordererAddress := $.Values.useActualDomains | ternary (printf "%s.%s" (index $ordererOrg.Specs 0).Hostname $ordererOrg.Domain) (printf "hlf-orderer--%s--%s" ($ordererOrg.Name | lower) ((index $ordererOrg.Specs 0).Hostname | lower)) }} 
+{{- $vars:= dict}}
+# useActualDomains: {{ $.Values.useActualDomains }}
+# ordererAddress: {{ $ordererAddress }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
@@ -8,6 +11,15 @@ metadata:
 spec:
   entrypoint: channels
 
+  # additional entries going into /etc/hosts file
+  {{- if $.Values.hostAliases }}
+  hostAliases:
+  {{- range $i, $alias := $.Values.hostAliases }}
+  - ip: {{ $alias.ip }}
+    hostnames: {{ $alias.hostnames }}
+  {{- end }}
+  {{- end }}{{""}}
+  
   volumes:
   - name: hlf-channels
     secret:
@@ -15,8 +27,12 @@ spec:
   - name: hlf-channel-anchors
     secret:
       secretName: hlf-channel-anchors
+  - name: orderer-tlsca
+    secret:
+      # only use the first orderer
+      secretName: hlf-orderer--{{ $ordererOrg.Name | lower }}-tlsca
 
-{{ range $i, $org := .Values.PeerOrgs }}
+{{- range $i, $org := .Values.PeerOrgs }}
 {{- $peerStartIndex := (not $org.Template.Start) | ternary 0 $org.Template.Start | int }}
 {{- range $peerIndex := untilStep $peerStartIndex (add $peerStartIndex $org.Template.Count | int) 1 }}
 {{- $peer := (printf "peer%s" ($peerIndex | toString)) }}
@@ -158,9 +174,15 @@ spec:
       limit: {{ $.Values.retryCount }}
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer channel create -o {{ $orderer }}:7050 -c {{ $channel.name }} -f /hlf_config/channel/{{ $channel.name }}.tx"]
+      command: ["sh", "-c", "peer channel create -o {{ $ordererAddress }}:7050 -c {{ $channel.name }} -f /hlf_config/channel/{{ $channel.name }}.tx \
+                                {{- if $.Values.tlsEnabled }}
+                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                {{- end }}
+               "]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -169,8 +191,8 @@ spec:
           name: hlf-channels
       
       env:
-        - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+        # - name: CORE_PEER_ADDRESS
+        #   value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -184,7 +206,7 @@ spec:
 
 {{- end }} {{- /* if org */ -}} 
 {{- end }} {{- /* channel.orgs */ -}}
-{{- end }} {{- /* channels */ -}}
+{{- end }} {{- /* channels */ -}}{{""}}
 
 # leaf join templates
 {{- range $i, $channel := .Values.network.channels }}
@@ -206,10 +228,17 @@ spec:
       limit: {{ $.Values.retryCount }}
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer channel fetch config /var/hyperledger/{{ $channel.name }}.block -c {{ $channel.name }} -o {{ $orderer }}:7050 && \
+      command: ["sh", "-c", "peer channel fetch config /var/hyperledger/{{ $channel.name }}.block -c {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
+                                  {{- if $.Values.tlsEnabled }}
+                                      --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                  {{- end }}
+                             && echo '-- fetched channel config --' && \
+                             \
                              peer channel join -b /var/hyperledger/{{ $channel.name }}.block"]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -217,7 +246,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -233,7 +269,7 @@ spec:
 {{- end }} {{- /* if org */ -}} 
 {{- end }} {{- /* peer.Orgs */ -}}
 {{- end }} {{- /* channel.orgs */ -}}
-{{- end }} {{- /* channels */ -}}
+{{- end }} {{- /* channels */ -}}{{""}}
 
 # leaf update templates
 {{- range $i, $channel := .Values.network.channels }}
@@ -254,9 +290,15 @@ spec:
       limit: {{ $.Values.retryCount }}
     container:
       image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer channel update -o {{ $orderer }}:7050 -c {{ $channel.name }} -f /hlf_config/channel/{{ $channel.name }}-{{ $orgName }}.tx"]
+      command: ["sh", "-c", "peer channel update -o {{ $ordererAddress }}:7050 -c {{ $channel.name }} -f /hlf_config/channel/{{ $channel.name }}-{{ $orgName }}.tx \
+                                {{- if $.Values.tlsEnabled }}
+                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                {{- end }}
+               "]
 
       volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
         - mountPath: /etc/hyperledger/fabric/tls/
           name: peer-{{ $org.Name | lower }}-{{ $peer | lower }}-tls
         - mountPath: /etc/hyperledger/fabric/msp/
@@ -266,7 +308,14 @@ spec:
       
       env:
         - name: CORE_PEER_ADDRESS
-          value: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+          value: |- 
+              {{- if $.Values.useActualDomains }}
+                {{ $peer }}.{{ $org.Domain }}:7051
+              {{- else }}
+                hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}:7051
+              {{- end }}
+        - name: CORE_PEER_TLS_ENABLED
+          value: {{ $.Values.tlsEnabled | quote }}
         - name: FABRIC_LOGGING_SPEC
           value: debug
         - name: CORE_PEER_LOCALMSPID
@@ -281,5 +330,5 @@ spec:
 {{- end }} {{- /* if org */ -}} 
 {{- end }} {{- /* peer.Orgs */ -}}
 {{- end }} {{- /* channel.orgs */ -}}
-{{- end }} {{- /* channels */ -}}
+{{- end }} {{- /* channels */ -}}{{""}}
 ---

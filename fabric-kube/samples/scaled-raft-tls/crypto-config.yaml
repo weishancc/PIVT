@@ -9,6 +9,12 @@ OrdererOrgs:
     Domain: groeifabriek.nl
     Specs:
       - Hostname: orderer0
+      - Hostname: orderer1
+  - Name: Pivt
+    Domain: pivt.nl
+    Specs:
+      - Hostname: orderer0
+      
 # ---------------------------------------------------------------------------
 # "PeerOrgs" - Definition of organizations managing peer nodes
 # ---------------------------------------------------------------------------

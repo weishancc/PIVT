@@ -15,7 +15,7 @@ Organizations:
     - &Groeifabriek
         # DefaultOrg defines the organization which is used in the sampleconfig
         # of the fabric.git development environment
-        Name: Groeifabriek
+        Name: GroeifabriekMSP
 
         # ID to load the MSP definition as
         ID: GroeifabriekMSP
@@ -32,9 +32,6 @@ Organizations:
         ID: KargaMSP
 
         MSPDir: crypto-config/peerOrganizations/aptalkarga.tr/msp
-
-        # turn off security for the peer
-        AdminPrincipal: Role.MEMBER
 
         AnchorPeers:
             # AnchorPeers defines the location of peers which can be used
@@ -156,7 +153,7 @@ Orderer: &OrdererDefaults
     OrdererType: solo
 
     Addresses:
-        - hlf-orderer--groeifabriek:7050
+        - hlf-orderer--groeifabriek--orderer0:7050
 
     # Batch Timeout: The amount of time to wait before creating a batch
     BatchTimeout: 1s

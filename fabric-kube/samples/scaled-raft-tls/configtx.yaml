@@ -10,11 +10,7 @@
 ################################################################################
 Organizations:
 
-    # SampleOrg defines an MSP using the sampleconfig.  It should never be used
-    # in production but may be used as a template for other definitions
     - &Groeifabriek
-        # DefaultOrg defines the organization which is used in the sampleconfig
-        # of the fabric.git development environment
         Name: GroeifabriekMSP
 
         # ID to load the MSP definition as
@@ -23,9 +19,15 @@ Organizations:
         # MSPDir is the filesystem path which contains the MSP configuration
         MSPDir: crypto-config/ordererOrganizations/groeifabriek.nl/msp
 
+    - &Pivt
+        Name: PivtMSP
+
+        # ID to load the MSP definition as
+        ID: PivtMSP
+
+        MSPDir: crypto-config/ordererOrganizations/pivt.nl/msp
+
     - &Karga
-        # DefaultOrg defines the organization which is used in the sampleconfig
-        # of the fabric.git development environment
         Name: KargaMSP
 
         # ID to load the MSP definition as
@@ -37,7 +39,7 @@ Organizations:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--karga--peer9
+            - Host: peer9.aptalkarga.tr
               Port: 7051
 
     - &Nevergreen
@@ -54,7 +56,7 @@ Organizations:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--nevergreen--peer0
+            - Host: peer0.nevergreen.nl
               Port: 7051
 
     - &Atlantis
@@ -71,7 +73,7 @@ Organizations:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--atlantis--peer0
+            - Host: peer0.atlantis.com
               Port: 7051
 
 
@@ -149,11 +151,12 @@ Application: &ApplicationDefaults
 Orderer: &OrdererDefaults
 
     # Orderer Type: The orderer implementation to start
-    # Available types are "solo" and "kafka"
-    OrdererType: kafka
+    # Available types are "solo", "kafka" and "etcdraft"
+    OrdererType: etcdraft
 
     Addresses:
-        - hlf-orderer--groeifabriek--orderer0:7050
+        # - hlf-orderer--groeifabriek-0:7050
+        - orderer0.groeifabriek.nl:7050
 
     # Batch Timeout: The amount of time to wait before creating a batch
     BatchTimeout: 1s
@@ -173,11 +176,20 @@ Orderer: &OrdererDefaults
         # max bytes will result in a batch larger than preferred max bytes.
         PreferredMaxBytes: 1024 KB
 
-    Kafka:
-        # Brokers: A list of Kafka brokers to which the orderer connects
-        # NOTE: Use IP:port notation
-        Brokers:
-            - hlf-kafka-service:9092
+    EtcdRaft:
+        Consenters:
+        - Host: orderer0.groeifabriek.nl
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/groeifabriek.nl/orderers/orderer0.groeifabriek.nl/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/groeifabriek.nl/orderers/orderer0.groeifabriek.nl/tls/server.crt
+        - Host: orderer1.groeifabriek.nl
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/groeifabriek.nl/orderers/orderer1.groeifabriek.nl/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/groeifabriek.nl/orderers/orderer1.groeifabriek.nl/tls/server.crt
+        - Host: orderer0.pivt.nl
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/pivt.nl/orderers/orderer0.pivt.nl/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/pivt.nl/orderers/orderer0.pivt.nl/tls/server.crt
 
     # Organizations is the list of orgs which are defined as participants on
     # the orderer side of the network
@@ -200,6 +212,7 @@ Profiles:
             <<: *OrdererDefaults
             Organizations:
                 - *Groeifabriek
+                - *Pivt
             Capabilities:
                 <<: *OrdererCapabilities
         Consortiums:

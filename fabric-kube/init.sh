@@ -47,7 +47,7 @@ for channelInfo in $channels; do
 
     for org in $(echo $orgs | jq -c -r '.[]'); do
       echo "-- creating anchor peer TX for channel $channel org: $org --"
-      configtxgen -profile $channel -outputAnchorPeersUpdate ./channel-artifacts/$channel/"$org"MSPanchors.tx -channelID $channel -asOrg "$org"MSP
+      configtxgen -profile $channel -outputAnchorPeersUpdate ./channel-artifacts/$channel/"$org"_anchors.tx -channelID $channel -asOrg "$org"MSP
     done
 
 done
