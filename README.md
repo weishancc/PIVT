@@ -27,7 +27,7 @@
 This repository contains a couple of Helm charts to:
 * Configure and launch the whole HL Fabric network, either:
   * A simple one, one peer per organization and Solo orderer
-  * Or scaled up one, multiple peers per organization and Kafka orderer
+  * Or scaled up one, multiple peers per organization and Kafka or Raft orderer
 * Populate the network:
   * Create the channels, join peers to channels, update channels for Anchor peers
   * Install/Instantiate all chaincodes, or some of them, or upgrade them to newer version
