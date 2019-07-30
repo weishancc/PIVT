@@ -20,6 +20,8 @@ useActualDomains: false
 # see the Raft sample in the README for how to use this
 hostAliases: []
 
+logLevel: info
+
 flow:
   channel:
     # should we run top level channel flows in parallel? 

@@ -52,6 +52,10 @@ peer:
   restore: 
     # restore peers data from backup during restore procedure?
     enabled: true
+  operations:
+    enabled: false
+    metrics:
+      provider: prometheus
     
 # CouchDB settings. applies to all CouchDB's
 couchdb:
@@ -72,9 +76,6 @@ couchdb:
 
 # Orderer settings. applies to all Orderer pods
 orderer:
-  # TODO remove?
-  # # should be solo, kafka or etcdraft
-  # type: solo
   # should be greater than 1 only if kafka orderer is used
   replicas: 1
   logLevel: info

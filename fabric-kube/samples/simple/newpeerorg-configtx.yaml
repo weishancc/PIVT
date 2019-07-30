@@ -1,0 +1,25 @@
+---
+Organizations:
+    - &Valhalla
+        Name: ValhallaMSP
+
+        # ID to load the MSP definition as
+        ID: ValhallaMSP
+
+        MSPDir: crypto-config/peerOrganizations/valhalla.asgard/msp
+
+        AnchorPeers:
+            - Host: hlf-peer--valhalla--peer0
+              Port: 7051
+
+    - &Cimmeria
+        Name: CimmeriaMSP
+
+        # ID to load the MSP definition as
+        ID: CimmeriaMSP
+
+        MSPDir: crypto-config/peerOrganizations/cimmeria.hage/msp
+
+        AnchorPeers:
+            - Host: hlf-peer--cimmeria--peer0
+              Port: 7051
