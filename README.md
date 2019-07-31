@@ -328,7 +328,7 @@ Lets create new organizations:
 helm template new-peer-org-flow/ -f samples/simple/newpeerorg-crypto-config.yaml -f samples/simple/network.yaml -f samples/simple/crypto-config.yaml -f samples/simple/configtx.yaml | argo submit - --watch
 ```
 After the flow completes, you will see an output like below:
-![Screenshot_newpeerorg](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_newpeerorg.png)
+![Screenshot_newpeerorg](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_newpeerorg2.png)
 
 By default, this flow adds new orgs to all existing channels and consortiums. You can limit this behaviour by setting `flow.channel.include` and `flow.consortium.include` variables respectively.
 
