@@ -60,7 +60,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 * [Helm](https://github.com/helm/helm/releases/tag/v2.11.0), developed with 2.11, newer 2.xx versions should also work
 * [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://pypi.org/project/yq/) 2.6+
 * [Argo](https://github.com/argoproj/argo/blob/master/demo.md), both CLI and Controller
-* [Minio](https://github.com/argoproj/argo/blob/master/ARTIFACT_REPO.md), only required for backup/restore flows
+* [Minio](https://github.com/argoproj/argo/blob/master/ARTIFACT_REPO.md), only required for backup/restore and new-peer-org flows
 * Run all the commands in *fabric-kube* folder
 
 ## [Network Architecture](#network-architecture)
