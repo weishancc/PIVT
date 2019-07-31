@@ -121,7 +121,7 @@ helm template channel-flow/ -f samples/simple/network.yaml -f samples/simple/cry
 Wait for the flow to complete, finally you will see something like this:
 ![Screenshot_channel_flow](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_channel_flow_declarative.png)
 
-Channel flow is declarative and idompotent. You can run it many times. It will create the channel only if it doesn't exist, join peers to channels only if they didn't join yet, etc.
+Channel flow is declarative and idempotent. You can run it many times. It will create the channel only if it doesn't exist, join peers to channels only if they didn't join yet, etc.
 
 ### [Installing chaincodes](#installing-chaincodes)
 
@@ -164,7 +164,7 @@ Chaincode `very-simple` is upgarded to version 3.0!
 
 Alternatively, you can also set chaincode versions individually via `network.chaincodes[].version`
 
-Chaincode flow is declarative and idompotent. You can run it many times. It will install chaincodes only if not installed, instatiate them only if not instantiated yet, etc.
+Chaincode flow is declarative and idempotent. You can run it many times. It will install chaincodes only if not installed, instatiate them only if not instantiated yet, etc.
 
 ### [Scaled-up Kafka network](#scaled-up-kafka-network)
 Now, lets launch a scaled up network backed by a Kafka cluster.
