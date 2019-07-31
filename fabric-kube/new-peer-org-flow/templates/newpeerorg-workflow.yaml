@@ -162,50 +162,22 @@ spec:
     steps: 
     - - name: create-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
         template: create-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
-    # - - name: sign-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
-    #     template: sign-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
-{{- $_ := set $vars "firstSignature" true }}
-{{- range $orgName := $channel.orgs }}
-    - - name: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
-        template: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
+    - - name: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
+        template: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
         arguments:
           artifacts:
           - name: config_update_tx
-          {{- if $vars.firstSignature }}
             from: "{{ "{{" }}steps.create-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}.outputs.artifacts.config_update_tx{{ "}}" }}"
-          {{- else }}
-            from: "{{ "{{" }}steps.sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
-          {{- end }}
-{{- $_ := set $vars "firstSignature" false }}
-{{- $_ := set $vars "previousOrgName" $orgName }}
-{{- end }} {{- /* channel.orgs */ -}}{{""}}
+       
     - - name: send-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
         template: send-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
         arguments:
           artifacts:
           - name: signed_config_update_tx
-            from: "{{ "{{" }}steps.sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+            from: "{{ "{{" }}steps.sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}        
 {{- end }} {{- /* NewPeerOrgs */ -}}{{""}}
-
-# fourth level sign-config-update templates
-# {{- range $i, $newOrg := .Values.NewPeerOrgs }}
-# {{- range $i, $channel := $.Values.network.channels }}
-# {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-#   - name: sign-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
-#     steps: 
-# {{- range $orgName := $channel.orgs }}
-#     - - name: sign-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
-#         template: sign-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
-#         arguments:
-#           artifacts:
-#           - name: config_update_tx
-#             from: "{{ "{{" }}steps.create-config-update--{{ $newOrg.Name }}--{{ $channel.name }}.outputs.artifacts.config_update_tx{{ "}}" }}"
-# {{- end }} {{- /* channel.orgs */ -}}
-# {{- end }} {{- /* if channel included */ -}}
-# {{- end }} {{- /* channels */ -}}
-# {{- end }} {{- /* NewPeerOrgs */ -}}{{""}}
 
 # fourth level add-org-to-consortium templates
 {{- if $.Values.flow.consortium.enabled }}
@@ -216,6 +188,65 @@ spec:
     steps: 
     - - name: create-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
         template: create-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+    - - name: sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+        template: sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+        arguments:
+          artifacts:
+          - name: config_update_tx
+            from: "{{ "{{" }}steps.create-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}.outputs.artifacts.config_update_tx{{ "}}" }}"
+    - - name: send-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+        template: send-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+        arguments:
+          artifacts:
+          - name: signed_config_update_tx
+            from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+{{- end }} {{- /* if consortium included */ -}}
+{{- end }} {{- /* consortiums */ -}}        
+{{- end }} {{- /* NewPeerOrgs */ -}}
+{{- end }} {{- /* consortium enabled */ -}}{{""}}
+
+# fifth level sign-channel-config-update templates
+{{- range $i, $newOrg := .Values.NewPeerOrgs }}
+{{- range $i, $channel := $.Values.network.channels }}
+{{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
+  - name: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}
+    inputs:
+      artifacts:
+      - name: config_update_tx
+    steps: 
+{{- $_ := set $vars "firstSignature" true }}
+{{- range $orgName := $channel.orgs }}
+    - - name: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
+        template: sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $orgName }}
+        arguments:
+          artifacts:
+          - name: config_update_tx
+          {{- if $vars.firstSignature }}
+            from: "{{ "{{" }}inputs.artifacts.config_update_tx{{ "}}" }}"
+          {{- else }}
+            from: "{{ "{{" }}steps.sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+          {{- end }}
+{{- $_ := set $vars "firstSignature" false }}          
+{{- $_ := set $vars "previousOrgName" $orgName }}
+{{- end }} {{- /* channel.orgs */ -}}{{""}}
+    outputs:
+      artifacts:
+      - name: signed_config_update_tx
+        from: "{{ "{{" }}steps.sign-channel-config-update--{{ $newOrg.Name }}--{{ $channel.name }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+{{- end }} {{- /* if channel included */ -}}
+{{- end }} {{- /* channels */ -}}
+{{- end }} {{- /* NewPeerOrgs */ -}}{{""}}
+
+# fifth level sign-system-channel-config-update templates
+{{- if $.Values.flow.consortium.enabled }}
+{{- range $i, $newOrg := .Values.NewPeerOrgs }}
+{{- range $i, $consortium := $consortiums }}
+{{- if or (not $.Values.flow.consortium.include) (has $consortium $.Values.flow.consortium.include) }}
+  - name: sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
+    inputs:
+      artifacts:
+      - name: config_update_tx
+    steps: 
 {{- $_ := set $vars "firstSignature" true }}
 {{- range $i, $ordererOrg := $.Values.OrdererOrgs }}
     - - name: sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}--{{ $ordererOrg.Name }}
@@ -224,19 +255,17 @@ spec:
           artifacts:
           - name: config_update_tx
           {{- if $vars.firstSignature }}
-            from: "{{ "{{" }}steps.create-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}.outputs.artifacts.config_update_tx{{ "}}" }}"
+            from: "{{ "{{" }}inputs.artifacts.config_update_tx{{ "}}" }}"
           {{- else }}
             from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
           {{- end }}
-{{- $_ := set $vars "firstSignature" false }}
+{{- $_ := set $vars "firstSignature" false }}          
 {{- $_ := set $vars "previousOrgName" $ordererOrg.Name }}
-{{- end }} {{- /* OrdererOrgs */ -}}{{""}}
-    - - name: send-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
-        template: send-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}
-        arguments:
-          artifacts:
-          - name: signed_config_update_tx
-            from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+{{- end }} {{- /* OrdererOrgs  */ -}}{{""}}
+    outputs:
+      artifacts:
+      - name: signed_config_update_tx
+        from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $newOrg.Name }}--{{ $consortium }}--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
 {{- end }} {{- /* if consortium included */ -}}
 {{- end }} {{- /* consortiums */ -}}        
 {{- end }} {{- /* NewPeerOrgs */ -}}
