@@ -25,13 +25,14 @@ rm -rf channel-artifacts
 mkdir -p channel-artifacts
 
 # generate certs
-echo "-- creating certificates  --"
+echo "-- creating certificates --"
 cryptogen generate --config ./crypto-config.yaml --output crypto-config
 
 # generate genesis block
-echo "-- creating genesis block  --"
+echo "-- creating genesis block --"
 genesisProfile=$(yq ".network.genesisProfile" $config_file -r)
-configtxgen -profile $genesisProfile -outputBlock ./channel-artifacts/genesis.block
+systemChannelID=$(yq ".network.systemChannelID" $config_file -r)
+configtxgen -profile $genesisProfile -channelID $systemChannelID -outputBlock ./channel-artifacts/genesis.block
 
 # copy stuff hlf-kube folder (as helm charts cannot access files outside of chart folder)
 # see https://github.com/helm/helm/issues/3276#issuecomment-479117753

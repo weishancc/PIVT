@@ -25,19 +25,16 @@ logLevel: info
 ordererSystemChannel: testchainid
 
 flow:
+  consortium:
+    # should we add new org(s) to existing consortiums?
+    enabled: true
+    # fill in this array with consortium names to limit adding new org only to these ones
+    include: []
   channel:
     # should we add new org(s) to existing channels?
     enabled: true
     # should we add new org(s) to multiple channels in parallel? 
     parallel: true
     # fill in this array with channel names to limit adding new org(s) only to these ones
-    include: []
-  consortium:
-    # should we add new org(s) to existing consortiums?
-    enabled: true
-    # by default, the flow parses consortium names from configtx.yaml using network.genesisProfile. 
-    # provide your values here to override this behaviour
-    names: []
-    # fill in this array with consortium names to limit adding new org only to these ones
     include: []
     

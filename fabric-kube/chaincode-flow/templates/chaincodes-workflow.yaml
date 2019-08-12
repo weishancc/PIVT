@@ -215,28 +215,30 @@ spec:
     inputs:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
-    container:
-      # image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
+    script:
+      # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
       image: raft/hl-fabric-tools:1.4.1
-      command: ["sh", "-c", "if peer chaincode checkinstalled --name {{ $chaincode.name }} --version {{ $version }}; then  \n
-                                echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already installed to peer {{ $peer }}, exiting with 0' \n
-                                exit 0 \n
-                             else \n
-                                result=$? \n
-                                echo \"-- result is: $result\" \n
-                                if test $result -ne 99; then \n
-                                  echo \"-- result is not 99, exiting with $result\" \n
-                                  exit $result \n
-                                fi \n
-                             fi \n
-      
-                             echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not installed to peer {{ $peer }}, will install..' \n
+      command: [sh]
+      source: |
+          if peer chaincode checkinstalled --name {{ $chaincode.name }} --version {{ $version }}; then  
+            echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already installed to peer {{ $peer }}, exiting with 0' 
+            exit 0 
+          else 
+            result=$? 
+            echo "-- result is: $result" 
+            if test $result -ne 99; then 
+              echo "-- result is not 99, exiting with $result" 
+              exit $result 
+            fi 
+          fi 
 
-                             # chaincode is packed with tar, first extract it \n
-                             mkdir -p /chaincode && \
-                             tar -xf /hlf_config/chaincode/{{ $chaincode.name }}.tar -C /chaincode && \ 
-                             peer chaincode install --path /chaincode/{{ $chaincode.name }} --name {{ $chaincode.name }} \
-                                  --version {{ $version }} --lang {{ $.Values.chaincode.language }}"]
+          echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not installed to peer {{ $peer }}, will install..' 
+
+          # chaincode is packed with tar, first extract it 
+          mkdir -p /chaincode && 
+          tar -xf /hlf_config/chaincode/{{ $chaincode.name }}.tar -C /chaincode && 
+          peer chaincode install --path /chaincode/{{ $chaincode.name }} --name {{ $chaincode.name }} \
+              --version {{ $version }} --lang {{ $.Values.chaincode.language }}
 
       volumeMounts:
         - mountPath: /etc/hyperledger/fabric/tls/
@@ -297,52 +299,53 @@ spec:
     inputs:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
-    container:
+    script:
+      # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
       image: raft/hl-fabric-tools:1.4.1
-      # image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "if peer chaincode checkinstantiated --name {{ $chaincode.name }} --version {{ $version }} --channelID {{ $channel.name }}; then  \n
-                                echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already instantiated on channel {{ $channel.name }}, exiting with 0' \n
-                                exit 0 \n
-                             else \n
-                                result=$? \n
-                                echo \"-- result is: $result\" \n
-                                if test $result -ne 99; then \n
-                                  echo \"-- result is not 99, exiting with $result\" \n
-                                  exit $result \n
-                                fi \n
-                             fi \n
+      command: [sh]
+      source: |
+          if peer chaincode checkinstantiated --name {{ $chaincode.name }} --version {{ $version }} --channelID {{ $channel.name }}; then  
+            echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already instantiated on channel {{ $channel.name }}, exiting with 0' 
+            exit 0 
+          else 
+            result=$? 
+            echo "-- result is: $result" 
+            if test $result -ne 99; then 
+              echo "-- result is not 99, exiting with $result" 
+              exit $result 
+            fi 
+          fi 
 
-                             echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not instantiated on channel {{ $channel.name }}, will check another version..' \n
+          echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not instantiated on channel {{ $channel.name }}, will check another version..' 
 
-                             if peer chaincode checkinstantiated --name {{ $chaincode.name }} --channelID {{ $channel.name }}; then  \n
-                                echo '-- Chaincode {{ $chaincode.name }} with another version is already instantiated on channel {{ $channel.name }}, will perform an upgrade chaincode transaction..' \n
-                                doUpgrade=true \n
-                             else \n
-                                result=$? \n
-                                echo \"-- result is: $result\" \n
-                                if test $result -ne 99; then \n
-                                  echo \"-- result is not 99, exiting with $result\" \n
-                                  exit $result \n
-                                fi \n
-                             fi \n
-      
-                             if [ -z \"$doUpgrade\" ]; then \n
-                                echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' \n
-                                peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
-                                      --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
-                                      --policy \"{{ $channel.policy }}\" --ctor '{\"Args\":[\"\"]}' \
-                                {{- if $.Values.tlsEnabled }}
-                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-                                {{- end }}
-                             \n else \n
-                                peer chaincode upgrade --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
-                                      --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
-                                      --policy \"{{ $channel.policy }}\" --ctor '{\"Args\":[\"\"]}' \
-                                {{- if $.Values.tlsEnabled }}
-                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-                                {{- end }}
-                             \n fi \n
-               "]
+          if peer chaincode checkinstantiated --name {{ $chaincode.name }} --channelID {{ $channel.name }}; then  
+            echo '-- Chaincode {{ $chaincode.name }} with another version is already instantiated on channel {{ $channel.name }}, will perform an upgrade chaincode transaction..' 
+            doUpgrade=true 
+          else 
+            result=$? 
+            echo "-- result is: $result" 
+            if test $result -ne 99; then 
+              echo "-- result is not 99, exiting with $result" 
+              exit $result 
+            fi 
+          fi 
+
+          if [ -z "$doUpgrade" ]; then 
+            echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' 
+            peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
+                  --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
+                  --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
+            {{- if $.Values.tlsEnabled }}
+                  --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+            {{- end }}
+          ; else 
+            peer chaincode upgrade --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
+                  --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
+                  --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
+            {{- if $.Values.tlsEnabled }}
+                  --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+            {{- end }}
+          ; fi
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -401,14 +404,15 @@ spec:
     inputs:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
-    container:
-      image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
-      # chaincode is packed with tar, first extract it
-      command: ["sh", "-c", "peer chaincode invoke -C {{ $channel.name }} -n {{ $chaincode.name }} -o {{ $ordererAddress }}:7050 -c {{ $.Values.flow.invoke.function | replace "\"" "\\\"" | squote }} \
-                                {{- if $.Values.tlsEnabled }}
-                                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-                                {{- end }}
-               "]
+    script:
+      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      command: [sh]
+      source: |
+          peer chaincode invoke -C {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
+              -n {{ $chaincode.name }} -c {{ $.Values.flow.invoke.function | squote }} \
+              {{- if $.Values.tlsEnabled }}
+                  --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+              {{- end }}
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca

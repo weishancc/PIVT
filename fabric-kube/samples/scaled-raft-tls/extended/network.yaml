@@ -2,8 +2,10 @@ tlsEnabled: true
 useActualDomains: true
 
 network:
-  # only used by init script to create genesis block 
+  # used by init script to create genesis block and by peer-org-flow to parse consortiums
   genesisProfile: OrdererGenesis
+  # used by init script to create genesis block 
+  systemChannelID: testchainid
 
   # defines which organizations will join to which channels
   channels:
@@ -16,6 +18,9 @@ network:
     - name: private-valhalla-cimmeria
       # all peers in these organizations will join the channel
       orgs: [Valhalla, Cimmeria]
+    - name: private-karga-valhalla-cimmeria
+      # all peers in these organizations will join the channel
+      orgs: [Karga, Valhalla, Cimmeria]
 
   # defines which chaincodes will be installed to which organizations
   chaincodes:
@@ -41,5 +46,8 @@ network:
       - name: private-valhalla-cimmeria
         orgs: [Valhalla, Cimmeria]
         policy: OR('ValhallaMSP.member','CimmeriaMSP.member')
+      - name: private-karga-valhalla-cimmeria
+        orgs: [Karga, Valhalla, Cimmeria]
+        policy: OR('KargaMSP.member','ValhallaMSP.member','CimmeriaMSP.member')
 
 

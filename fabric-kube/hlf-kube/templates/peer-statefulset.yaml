@@ -1,4 +1,5 @@
-{{- range $i, $org := .Values.PeerOrgs }}
+{{- if .Values.peer.launchPods }}
+{{- range $i, $org := $.Values.PeerOrgs }}
 {{- range $peerIndex := until ($org.Template.Count | int) }}
 {{- $peer := (printf "peer%s" ($peerIndex | toString)) }}
 {{- $peerAddress := $.Values.useActualDomains | ternary (printf "%s.%s:7051" $peer $org.Domain) (printf "hlf-peer--%s--%s:7051" ($org.Name | lower) ($peer | lower)) }}
@@ -291,3 +292,4 @@ spec:
 ---
 {{- end }} {{- /* Peers */ -}}
 {{- end }} {{- /* Orgs */ -}}
+{{- end }} {{- /* if launchPods */ -}}
