@@ -442,7 +442,7 @@ and [network.yaml](fabric-kube/samples/simple/network.yaml).
 
 ### crypto-config.yaml 
 This is Fabric's native configuration for `cryptogen` tool. We use it to define the network architecture. We honour `OrdererOrgs`, 
-`PeerOrgs`, `Template.Count` in PeerOrgs (peer count).
+`PeerOrgs`, `Template.Count` at PeerOrgs (peer count) and `Specs.Hostname[]` at OrdererOrgs.
 
 ```yaml
 OrdererOrgs:
@@ -488,6 +488,8 @@ network:
   # defines which chaincodes will be installed to which organizations
   chaincodes:
     - name: very-simple
+      # if defined, this will override the global chaincode.version value
+      version: # "2.0" 
       # chaincode will be installed to all peers in these organizations
       orgs: [Karga, Nevergreen, Atlantis]
       # at which channels are we instantiating/upgrading chaincode?
