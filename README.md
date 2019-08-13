@@ -244,7 +244,7 @@ Lets launch our Raft based Fabric network in _broken_ state:
 ```
 helm install ./hlf-kube --name hlf-kube -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml 
 ```
-The pods will start but they cannot communicate to each other since domain names are unknown. You might also want to use the option `--set peer.launchPods=false` to make this process faster.
+The pods will start but they cannot communicate to each other since domain names are unknown. You might also want to use the option `--set peer.launchPods=false --set orderer.launchPods=false` to make this process faster.
 
 Run this command to collect the host aliases:
 ```
