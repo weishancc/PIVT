@@ -81,6 +81,8 @@ orderer:
   # should be greater than 1 only if kafka orderer is used
   replicas: 1
   logLevel: info
+  # launch orderer pods? setting to false is useful for collecting host aliases and fast restart afterwards
+  launchPods: true
   persistence:
     enabled: false
     size: 16Gi
