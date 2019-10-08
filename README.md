@@ -60,7 +60,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 * [HL Fabric binaries](https://hyperledger-fabric.readthedocs.io/en/release-1.4/install.html) (There is an [issue](https://jira.hyperledger.org/browse/FAB-16376?focusedCommentId=63968&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-63968) with **cryptogen** 1.4.3, so use 1.4.2 or 1.4.1)
 * [Helm](https://github.com/helm/helm/releases/tag/v2.11.0), developed with 2.11, newer 2.xx versions should also work
 * [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://pypi.org/project/yq/) 2.6+
-* [Argo](https://github.com/argoproj/argo/blob/master/demo.md), both CLI and Controller
+* [Argo](https://github.com/argoproj/argo/blob/master/demo.md), both CLI and Controller 2.4.0+
 * [Minio](https://github.com/argoproj/argo/blob/master/ARTIFACT_REPO.md), only required for backup/restore and new-peer-org flows
 * Run all the commands in *fabric-kube* folder
 * AWS EKS users please also apply this [fix](https://github.com/APGGroeiFabriek/PIVT/issues/1)
@@ -212,12 +212,6 @@ helm template chaincode-flow/ -f samples/scaled-kafka/network.yaml -f samples/sc
 ```
 ### [Scaled-up Raft network](#scaled-up-raft-network)
 Now, lets launch a scaled up network based on three Raft orderer nodes spanning two Orderer organizations. This sample also demonstrates how to enable TLS and use actual domain names for peers and orderers instead of internal Kubernetes service names. Enabling TLS globally is mandatory as of Fabric 1.4.2. This is [resolved](https://jira.hyperledger.org/browse/FAB-15648) but not released yet.
-
-_For TLS, we need [hostAliases support](https://github.com/argoproj/argo/issues/1265) in Argo workflows and also in Argo CLI, which is implemented but not released yet. You can install Argo controller from Argo repo with the below command. We have built Argo CLI binary from Argo repo for Linux which can be downloaded from [here](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/argo/argo-linux-amd64)._ **Use at your own risk!**
-
-```
-kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo/master/manifests/install.yaml
-```
 
 Compare [scaled-raft-tls/configtx.yaml](fabric-kube/samples/scaled-raft-tls/configtx.yaml) with other samples, in particular it uses actual domain names like _peer0.atlantis.com_ instead of internal Kubernetes service names like _hlf-peer--atlantis--peer0_. This is necessary for enabling TLS since otherwise TLS certificates won't match service names.
 
