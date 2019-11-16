@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# creates new peer org certificates using project_folder/newpeerorg-crypto-config.yaml
+# extends certificates using project_folder/crypto-config.yaml
 # and copies them to hlf-kube/ folder
 
 if test "$#" -ne 1; then
