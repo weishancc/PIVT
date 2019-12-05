@@ -37,7 +37,7 @@ This repository contains a couple of Helm charts to:
 * Backup and restore the state of whole network
 
 **IMPORTANT:** Declarative flows use our home built [CLI tools](https://hub.docker.com/u/raft) 
-based on this [patch](https://gerrit.hyperledger.org/r/c/fabric/+/32197), **use at your own risk!**
+based on this [patch](https://github.com/hyperledger/fabric/pull/345), **use at your own risk!**
 If you don't want this behaviour, you can use [release/0.7](https://github.com/APGGroeiFabriek/PIVT/tree/release/0.7) branch.
 
 ## [Who made this?](#who-made-this)
