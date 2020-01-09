@@ -20,6 +20,11 @@ spec:
   - protocol: TCP
     port: 7051
     name: grpc
+  {{- if $.Values.peer.operations.enabled }}
+  - protocol: TCP
+    port: {{ $.Values.peer.operations.servicePort }}
+    name: operations  
+  {{- end }}
   - protocol: TCP
     port: 7052
     name: chaincode

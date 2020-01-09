@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-hyperledgerVersion: 1.4.2
+hyperledgerVersion: 1.4.3
 
 # see the Raft sample in the README for how to enable TLS
 tlsEnabled: false
@@ -34,7 +34,7 @@ ingress:
   parentDomain:
   annotations:
     kubernetes.io/ssl-redirect: "true"
-    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 
 # peer settings. applies to all peers
 peer:
@@ -42,6 +42,8 @@ peer:
   # launch peer pods? setting to false is useful for collecting host aliases and fast restart afterwards
   launchPods: true
   chaincode:
+    # attach chaincode's stdout to peer?
+    attachStdout: true
     logging:
       level:  info
       shim:   info
@@ -55,9 +57,14 @@ peer:
     # restore peers data from backup during restore procedure?
     enabled: true
   operations:
-    enabled: false
-    metrics:
-      provider: prometheus
+    enabled: true
+    listenAddress: 0.0.0.0:9443
+    servicePort: 9443
+    tls:
+      enabled: false
+  metrics:
+    enabled: true
+    provider: prometheus
     
 # CouchDB settings. applies to all CouchDB's
 couchdb:
@@ -92,6 +99,15 @@ orderer:
   restore: 
     # restore orderers data from backup during restore procedure?
     enabled: true
+  operations:
+    enabled: true
+    listenAddress: 0.0.0.0:8443
+    servicePort: 8443
+    tls: 
+      enabled: false
+  metrics:
+    enabled: true
+    provider: prometheus    
 
 # CA (Certificate Authority) settings. applies to all CA's
 ca:
@@ -100,6 +116,12 @@ ca:
   logLevel: info
   ingress:
     enabled: false
+
+# chaincode settings
+chaincode:
+  # fill in this array with chaincode names to limit the chaincode ConfigMap only to these ones
+  include: []
+
 
 # kafka settings
 hlf-kafka:

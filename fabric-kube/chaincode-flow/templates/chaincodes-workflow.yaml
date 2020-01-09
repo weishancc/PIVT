@@ -33,6 +33,8 @@ spec:
     secret:
       secretName: hlf-peer--{{ $org.Name | lower }}--admin-msp
       items:
+      - key: config.yaml
+        path: config.yaml
       - key: cert.pem
         path: signcerts/cert.pem
       - key: key.pem
@@ -198,6 +200,7 @@ spec:
 {{- if $.Values.flow.install.enabled }}
 {{- range $i, $chaincode := .Values.network.chaincodes }}
 {{- $version := (not $chaincode.version) | ternary $.Values.chaincode.version $chaincode.version }}
+{{- $language := (not $chaincode.language) | ternary $.Values.chaincode.language $chaincode.language }}
 {{- if or (not $.Values.flow.chaincode.include) (has $chaincode.name $.Values.flow.chaincode.include) }}
 {{- range $orgName := $chaincode.orgs }}
 {{- range $i, $org := $.Values.PeerOrgs }}
@@ -217,7 +220,7 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.1
+      image: raft/hl-fabric-tools:1.4.3
       command: [sh]
       source: |
           if peer chaincode checkinstalled --name {{ $chaincode.name }} --version {{ $version }}; then  
@@ -234,11 +237,23 @@ spec:
 
           echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not installed to peer {{ $peer }}, will install..' 
 
+          {{- if eq $language "golang" }}
+
+          # chaincode is packed with tar, first extract it 
+          mkdir -p $GOPATH/src/chaincode && 
+          tar -xf /hlf_config/chaincode/{{ $chaincode.name }}.tar -C $GOPATH/src/chaincode && 
+          peer chaincode install --path chaincode/{{ $chaincode.name }} --name {{ $chaincode.name }} \
+              --version {{ $version }} --lang {{ $language }}
+
+          {{- else }}
+
           # chaincode is packed with tar, first extract it 
           mkdir -p /chaincode && 
           tar -xf /hlf_config/chaincode/{{ $chaincode.name }}.tar -C /chaincode && 
           peer chaincode install --path /chaincode/{{ $chaincode.name }} --name {{ $chaincode.name }} \
-              --version {{ $version }} --lang {{ $.Values.chaincode.language }}
+              --version {{ $version }} --lang {{ $language }}
+
+          {{- end }}
 
       volumeMounts:
         - mountPath: /etc/hyperledger/fabric/tls/
@@ -281,6 +296,7 @@ spec:
 {{- if $.Values.flow.instantiate.enabled }}
 {{- range $i, $chaincode := .Values.network.chaincodes }}
 {{- $version := (not $chaincode.version) | ternary $.Values.chaincode.version $chaincode.version }}
+{{- $language := (not $chaincode.language) | ternary $.Values.chaincode.language $chaincode.language }}
 {{- if or (not $.Values.flow.chaincode.include) (has $chaincode.name $.Values.flow.chaincode.include) }}
 {{- range $channel := $chaincode.channels }}
 {{- $orgName := index $channel.orgs 0 }}
@@ -301,7 +317,7 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.1
+      image: raft/hl-fabric-tools:1.4.3
       command: [sh]
       source: |
           if peer chaincode checkinstantiated --name {{ $chaincode.name }} --version {{ $version }} --channelID {{ $channel.name }}; then  
@@ -332,14 +348,14 @@ spec:
 
           if [ -z "$doUpgrade" ]; then 
             echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' 
-            peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
+            peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $language }} \
                   --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
                   --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
             {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
             {{- end }}
           ; else 
-            peer chaincode upgrade --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $.Values.chaincode.language }} \
+            peer chaincode upgrade --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $language }} \
                   --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
                   --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
             {{- if $.Values.tlsEnabled }}

@@ -17,6 +17,12 @@ spec:
   - protocol: TCP
     port: 7050
     name: grpc
+  # to verify 
+  {{- if $.Values.orderer.operations.enabled }}  
+  - protocol: TCP
+    port: {{ $.Values.orderer.operations.servicePort }}
+    name: operations  
+  {{- end }}  
 ---
 {{- end }} {{- /* org.Specs */ -}}
 {{- end }} {{- /* OrdererOrgs */ -}}

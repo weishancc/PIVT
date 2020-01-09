@@ -1,4 +1,5 @@
 {{- range $i, $chaincode := .Values.network.chaincodes }}
+{{- if or (not $.Values.chaincode.include) (has $chaincode.name $.Values.chaincode.include) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,4 +11,5 @@ binaryData:
   {{ $chaincode.name }}.tar: |-
     {{ ($.Files.Get (printf "chaincode/%s.tar" $chaincode.name)) | b64enc }}
 ---
+{{- end }} {{- /* if chaincode included */ -}}
 {{- end }} {{- /* chaincode */ -}}

@@ -179,6 +179,20 @@ spec:
         # - name: ORDERER_GENERAL_CLUSTER_LISTENADDRESS
         #   value: 0.0.0.0
 
+        # Operations configuration 
+        {{- if $.Values.orderer.operations.enabled }}
+        - name: ORDERER_OPERATIONS_LISTENADDRESS
+          value: {{ $.Values.orderer.operations.listenAddress }}
+        - name: ORDERER_OPERATIONS_TLS_ENABLED
+          value: {{ $.Values.orderer.operations.tls.enabled | quote }}
+        {{- end }}
+
+        # Metrics configuration with Prometheus
+        {{-  if $.Values.orderer.metrics.enabled }}
+        - name: ORDERER_METRICS_PROVIDER
+          value: {{ $.Values.orderer.metrics.provider }}
+        {{ end }}  
+
         - name: HFC_LOGGING
           value: '{"info":"console"}'
         - name: GRPC_VERBOSITY

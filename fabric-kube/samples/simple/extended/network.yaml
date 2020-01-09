@@ -36,6 +36,8 @@ network:
         policy: OR('KargaMSP.member','NevergreenMSP.member','AtlantisMSP.member','ValhallaMSP.member','CimmeriaMSP.member')
         
     - name: even-simpler
+      # if defined, this will override the global chaincode.language value
+      language: golang
       orgs: [Karga, Atlantis, Valhalla, Cimmeria]
       channels:
       - name: private-karga-atlantis

@@ -59,6 +59,7 @@ spec:
       - name: dockersocket
         hostPath:
           path: /var/run/docker.sock
+          type: Socket
       - name: peer-tls
         secret:
           secretName: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}-tls
@@ -66,6 +67,8 @@ spec:
         secret:
           secretName: hlf-peer--{{ $org.Name | lower }}--{{ $peer | lower }}-msp
           items:
+          - key: config.yaml
+            path: config.yaml
           - key: cert.pem
             path: signcerts/cert.pem
           - key: key.pem
@@ -80,6 +83,8 @@ spec:
         secret:
           secretName: hlf-peer--{{ $org.Name | lower }}--admin-msp
           items:
+          - key: config.yaml
+            path: config.yaml
           - key: cert.pem
             path: signcerts/cert.pem
           - key: key.pem
@@ -257,6 +262,8 @@ spec:
           value: {{ $.Values.peer.chaincode.logging.level }}
         - name: CORE_CHAINCODE_LOGGING_SHIM
           value: {{ $.Values.peer.chaincode.logging.shim }}
+        - name: CORE_VM_DOCKER_ATTACHSTDOUT
+          value: {{ $.Values.peer.chaincode.attachStdout | quote }} 
         
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: CouchDB
@@ -274,6 +281,20 @@ spec:
         - name: GRPC_TRACE
           value:  all
         
+        # Operations service
+        {{- if $.Values.peer.operations.enabled }}
+        - name: CORE_OPERATIONS_LISTENADDRESS
+          value: {{ $.Values.peer.operations.listenAddress }}
+        - name: CORE_OPERATIONS_TLS_ENABLED
+          value: {{ $.Values.peer.operations.tls.enabled | quote }}
+        {{- end }}
+
+        # metrics with Prometheus
+        {{- if $.Values.peer.metrics.enabled }}
+        - name: CORE_METRICS_PROVIDER
+          value: {{ $.Values.peer.metrics.provider }}
+        {{- end }}
+
       # CouchDB container
       - name: couchdb
         image: hyperledger/fabric-couchdb:{{ $.Values.couchdb.version }}

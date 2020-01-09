@@ -607,7 +607,7 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.1
+      image: raft/hl-fabric-tools:1.4.3
       command: [bash]
       # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
       source: |
