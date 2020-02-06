@@ -3,7 +3,7 @@
 
 flow:
   chaincode:
-    parallel: true
+    parallel: false
   install:
     enabled: false
   instantiate:
