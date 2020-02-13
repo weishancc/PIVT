@@ -25,9 +25,9 @@ Anyway, this behaviour can be disabled by passing `flow.invoke.enabled=false` pa
 
 ### Can I add new organizations/peers to an already running network?
 
-Hopefully you can :) After creating crypto material, hopefully this will be as easy as making a `helm upgrade..`
-
-We will soon check this scenario and implement necessary changes (if any) as this is a requirement for our project. 
+Yes you can. See the [adding new peer organizations](https://github.com/APGGroeiFabriek/PIVT#adding-new-peer-organizations)
+and [adding new peers to organizations](https://github.com/APGGroeiFabriek/PIVT/blob/master/README.md#adding-new-peers-to-organizations)
+sections respectively.
 
 ### How can I distinguish between endorser and committer peers when running a network with multiple peers per organization?
 
