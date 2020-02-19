@@ -28,7 +28,7 @@ restore:
   # initiate restore procedure?
   enabled: false
 
-# common ingress settings
+# common settings for CouchDB and CA ingresses
 ingress:
   # all ingress subdomains will be created under this domain
   parentDomain:
@@ -50,6 +50,15 @@ peer:
   persistence:
     enabled: false
     size: 16Gi
+  ingress:
+    enabled: false
+    annotations:
+      # this should match the ingressClass when peer ingress controller is created
+      kubernetes.io/ingress.class: "hlf-peer"
+  externalService:
+    # expose peers to outer world with LoadBalancer service type?
+    enabled: false
+    annotations:
   backup: 
     # take backup of peers during backup procedure?
     enabled: true
@@ -57,13 +66,13 @@ peer:
     # restore peers data from backup during restore procedure?
     enabled: true
   operations:
-    enabled: true
+    enabled: false
     listenAddress: 0.0.0.0:9443
     servicePort: 9443
     tls:
       enabled: false
   metrics:
-    enabled: true
+    enabled: false
     provider: prometheus
     
 # CouchDB settings. applies to all CouchDB's
@@ -93,6 +102,15 @@ orderer:
   persistence:
     enabled: false
     size: 16Gi
+  ingress:
+    enabled: false
+    annotations:
+      # this should match the ingressClass when orderer ingress controller is created
+      kubernetes.io/ingress.class: "hlf-orderer"
+  externalService:
+    # expose orderers to outer world with LoadBalancer service type?
+    enabled: false
+    annotations:
   backup: 
     # take backup of orderers during backup procedure?
     enabled: true
@@ -100,13 +118,13 @@ orderer:
     # restore orderers data from backup during restore procedure?
     enabled: true
   operations:
-    enabled: true
+    enabled: false
     listenAddress: 0.0.0.0:8443
     servicePort: 8443
     tls: 
       enabled: false
   metrics:
-    enabled: true
+    enabled: false
     provider: prometheus    
 
 # CA (Certificate Authority) settings. applies to all CA's

@@ -74,7 +74,7 @@ spec:
           - key: key.pem
             path: keystore/key.pem
           - key: cacert.pem
-            path: cacerts/cert.pem
+            path: cacerts/ca.{{ $org.Domain}}-cert.pem
           - key: tlscacert.pem
             path: tlscacerts/cert.pem
           - key: admincert.pem
@@ -280,6 +280,8 @@ spec:
           value: DEBUG
         - name: GRPC_TRACE
           value:  all
+        # - name: GODEBUG
+        #   value: http2debug=2
         
         # Operations service
         {{- if $.Values.peer.operations.enabled }}

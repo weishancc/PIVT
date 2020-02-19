@@ -1,29 +1,29 @@
+{{- if .Values.orderer.externalService.enabled }}
 {{- range $i, $org := .Values.OrdererOrgs }}
 {{- range $i, $host := $org.Specs }}
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
+  name: hlf-orderer-external--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
   labels:
     name: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
     component: hlf-orderer
     fqdn: {{ $host.Hostname }}.{{ $org.Domain }}
-    addToHostAliases: "true"
+    addToExternalHostAliases: "true"
+  annotations:
+    {{- range $key, $value := $.Values.peer.externalService.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}
   ports:
   - protocol: TCP
     port: 7050
     name: grpc
-  # to verify 
-  {{- if $.Values.orderer.operations.enabled }}  
-  - protocol: TCP
-    port: {{ $.Values.orderer.operations.servicePort }}
-    name: operations  
-  {{- end }}  
 ---
 {{- end }} {{- /* org.Specs */ -}}
 {{- end }} {{- /* OrdererOrgs */ -}}
+{{- end }} {{- /* If externalService.enabled */ -}}

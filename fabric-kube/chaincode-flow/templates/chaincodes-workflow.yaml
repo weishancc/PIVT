@@ -1,8 +1,21 @@
-{{- $ordererOrg := index .Values.OrdererOrgs 0 }}
-{{- $ordererAddress := $.Values.useActualDomains | ternary (printf "%s.%s" (index $ordererOrg.Specs 0).Hostname $ordererOrg.Domain) (printf "hlf-orderer--%s--%s" ($ordererOrg.Name | lower) ((index $ordererOrg.Specs 0).Hostname | lower)) }} 
-{{- $vars:= dict }}
+{{- $vars:= dict}}
+{{- if .Values.externalOrderer.enabled }}
+  {{- $_ := set $vars "ordererUrl" (printf "%s:%s" $.Values.externalOrderer.host $.Values.externalOrderer.port)  }}
+  {{- $_ := set $vars "ordererOrgName" $.Values.externalOrderer.orgName }}
+  {{- $_ := set $vars "ordererTlsSecret"  (printf "hlf-orderer--%s-external-tlsca" ($vars.ordererOrgName | lower)) }}
+{{- else }}
+  {{- $ordererOrg := index .Values.OrdererOrgs 0 }}
+  {{- $ordererAddress := $.Values.useActualDomains | ternary (printf "%s.%s" (index $ordererOrg.Specs 0).Hostname $ordererOrg.Domain) (printf "hlf-orderer--%s--%s" ($ordererOrg.Name | lower) ((index $ordererOrg.Specs 0).Hostname | lower)) }} 
+  {{- $_ := set $vars "ordererUrl" (printf "%s:7050" $ordererAddress ) }}
+  {{- $_ := set $vars "ordererOrgName" $ordererOrg.Name }}
+  {{- $_ := set $vars "ordererTlsSecret"  (printf "hlf-orderer--%s-tlsca" ($ordererOrg.Name | lower)) }}
+{{- end }}
+
 # useActualDomains: {{ $.Values.useActualDomains }}
-# ordererAddress: {{ $ordererAddress }}
+# externalOrderer.enabled: {{ .Values.externalOrderer.enabled }}
+# ordererOrgName: {{ $vars.ordererOrgName }}
+# ordererUrl: {{ $vars.ordererUrl }}
+# ordererTlsSecret: {{ $vars.ordererTlsSecret }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
@@ -24,8 +37,7 @@ spec:
   volumes:
   - name: orderer-tlsca
     secret:
-      # only use the first orderer
-      secretName: hlf-orderer--{{ $ordererOrg.Name | lower }}-tlsca
+      secretName: {{ $vars.ordererTlsSecret }}
 
 {{- range $i, $org := .Values.PeerOrgs }}
 
@@ -349,14 +361,14 @@ spec:
           if [ -z "$doUpgrade" ]; then 
             echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' 
             peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $language }} \
-                  --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
+                  --channelID {{ $channel.name }} --orderer {{ $vars.ordererUrl }} \
                   --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
             {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
             {{- end }}
           ; else 
             peer chaincode upgrade --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $language }} \
-                  --channelID {{ $channel.name }} --orderer {{ $ordererAddress }}:7050 \
+                  --channelID {{ $channel.name }} --orderer {{ $vars.ordererUrl }} \
                   --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
             {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
@@ -424,7 +436,7 @@ spec:
       image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
       command: [sh]
       source: |
-          peer chaincode invoke -C {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
+          peer chaincode invoke -C {{ $channel.name }} -o {{ $vars.ordererUrl }} \
               -n {{ $chaincode.name }} -c {{ $.Values.flow.invoke.function | squote }} \
               {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \

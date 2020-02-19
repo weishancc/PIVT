@@ -1,9 +1,12 @@
 #!/bin/bash
 
-if test "$#" -lt 1; then
+if [ "$#" -lt 1 ]; then
    echo "usage: collect_host_aliases.sh <project_folder> [additional arguments for kubectl]"
    exit 2
 fi
+
+# exit when any command fails
+set -e
 
 project_folder=$1
 

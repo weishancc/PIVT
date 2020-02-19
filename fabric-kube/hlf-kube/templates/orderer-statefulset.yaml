@@ -199,6 +199,8 @@ spec:
           value: ERROR
         - name: GRPC_TRACE
           value:  all
+        # - name: GODEBUG
+        #   value: http2debug=2
       {{- end }} {{- /* if/else backup/restore enabled */ -}}{{""}}
 ---
 {{- end }} {{- /* org.Specs */ -}}
