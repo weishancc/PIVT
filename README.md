@@ -354,7 +354,7 @@ Notice we are installing one Ingress controller for peers and one for orderers. 
 
 Wait for Ingress LoadBalancer services gets their external IP's (this can take a while):
 ```
-kubectl -n kube-system get svc -l app=nginx-ingress,component=controller -w
+kubectl -n kube-system get svc -l app=nginx-ingress,component=controller --watch
 ```
 ![Screenshot_peerorg_flow_declarative](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_waiting_for_ingress_loadbalancer_ip.png)
 
@@ -408,7 +408,7 @@ cp hlf-kube/channel-artifacts/genesis.block ../fabric-kube-three/hlf-kube/channe
 
 #### Launch the network
 
-The rest if more or less the same as launching the whole Raft network in the same cluster. We will first launch the network parts in broken state, collect host aliases and then update the network parts with host aliases.
+The rest is more or less the same as launching the whole Raft network in the same cluster. We will first launch the network parts in broken state, collect host aliases and then update the network parts with host aliases.
 
 But first we need to copy TLS CA certs of `Pivt` orderer organization to chart three. `cluster-three` doesn't run an `Orderer` organization, so it needs to connect to an external orderer. TLS certificates are required for that.
 ```
@@ -446,7 +446,7 @@ These are created because of `ExternalOrdererOrgs` in `crypto-config.yaml`. In `
 Before continuing wait for LoadBalancer external IP's are retrieved in `cluster-two`:
 ```
 # run in two
-kubectl --namespace two get svc -l addToExternalHostAliases=true -w
+kubectl --namespace two get svc -l addToExternalHostAliases=true --watch
 ```
 
 Then collect host aliases:
@@ -463,7 +463,7 @@ Then collect host aliases:
 ./collect_host_aliases.sh samples/cross-cluster-raft-tls/cluster-three/ --namespace three
 ./collect_external_host_aliases.sh ingress samples/cross-cluster-raft-tls/cluster-three/ --namespace three
 ```
-`collect_external_host_aliases.sh` script is equivalent of `collect_host_aliases.sh` but its output is intended to be used by the rest of the Fabric network which will communicate with this part. Of course, if your domain names are registered to global DNS servers (security wise not a good idea I guess) or you are using another DNS trick you don't need this.
+`collect_external_host_aliases.sh` script is equivalent of `collect_host_aliases.sh` but its output is intended to be used by the rest of the Fabric network which will communicate with this part. Of course, if your domain names are registered to global DNS servers (security wise not a good idea I guess) or you are using other DNS tricks you don't need this.
 
 **Important:** When peers/orderers are exposed via Ingress, `collect_external_host_aliases.sh` script assumes Ingress controllers are deployed to `kube-system` namespace and have `hlf-peer-ingress` and `hlf-orderer-ingress` release names respectively.
 
