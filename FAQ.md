@@ -1,12 +1,8 @@
 ### I don't want to launch the whole Fabric network but part of it, can I still use these charts?
 
-Yes, you can. Network architecture is defined in `crypto-config.yaml` file, just strip it down to desired components.
-But: 
-* It's up to you to expose your network components to outer world
-* If you are not running an Orderer inside Kubernetes, you cannot use channel and chaincode flows as they are. 
-You need to extend the charts to take external Orderer address as a parameter
+Yes, you can. Network topology is defined in `crypto-config.yaml` file, just strip it down to desired components.
 
-If you implement these, please feel free to share your extensions :)
+See the [cross-cluster-raft-network](https://github.com/APGGroeiFabriek/PIVT#cross-cluster-raft-network) sample for a complete running example and details.
 
 ### I'm not using `cryptogen` tool but we are creating our own certificates, can I still use these charts?
 
