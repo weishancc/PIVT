@@ -12,6 +12,7 @@
   * [Installing chaincodes](#installing-chaincodes)
   * [Scaled-up Kafka network](#scaled-up-kafka-network)
   * [Scaled-up Raft network](#scaled-up-raft-network)
+  * [Cross-cluster Raft network](#cross-cluster-raft-network)
   * [Adding new peer organizations](#adding-new-peer-organizations)
   * [Adding new peers to organizations](#adding-new-peers-to-organizations)
 * [Configuration](#configuration)
@@ -27,7 +28,7 @@
 
 ## [What is this?](#what-is-this)
 This repository contains a couple of Helm charts to:
-* Configure and launch the whole HL Fabric network, either:
+* Configure and launch the whole HL Fabric network or part of it, either:
   * A simple one, one peer per organization and Solo orderer
   * Or scaled up one, multiple peers per organization and Kafka or Raft orderer
 * Populate the network declaratively:
@@ -69,7 +70,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 
 ### Simple Network Architecture
 
-![Simple Network](https://s3-eu-west-1.amazonaws.com/raft-fabric-kube/images/HL_in_Kube_simple.png)
+![Simple Network](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/HL_in_Kube_simple.png)
 
 ### Scaled Up Kafka Network Architecture
 
@@ -298,6 +299,254 @@ And install chaincodes:
 ```
 helm template chaincode-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml | argo submit - --watch
 ```
+### [Cross-cluster Raft network](#cross-cluster-raft-network)
+
+#### Overview
+
+This sample demonstrates how to spread `scaled-raft-tls` sample over three Kubernetes clusters. The same mechanism can be used
+for any combination of hybrid networks, some parts running on premises as plain Docker containers, or on bare metal or whatever. 
+In any case, these Helm charts are used for running and operating **the part of Fabric network** running in your cluster.
+
+Basically there are two requirements to integrate your part of Fabric network with the rest:
+* Peer and orderer nodes should be exposed to outer world (obviously)
+* Any node should be accesible via the same address (host:port) either inside cluster or from outside of cluster
+
+Exposing peer and orderer nodes is possible either via `Ingress` or via `LoadBalancer`. This sample demonstrates both.
+
+The layout is as follows:
+
+```
+Cluster-One:
+    OrdererOrgs:
+    - Name: Groeifabriek
+      NodeCount: 2
+    PeerOrgs:
+    - Name: Karga
+      PeerCount: 2
+    
+Cluster-Two:
+    OrdererOrgs:
+    - Name: Pivt
+      NodeCount: 1
+    PeerOrgs:
+    - Name: Atlantis
+      PeerCount: 2
+  
+Cluster-Three:
+    PeerOrgs:
+    - Name: Nevergreen
+      PeerCount: 2
+```
+
+Inspect the `crypto-config.yaml` and `network.yaml` files in `samples/cross-cluster-raft-tls/cluster-one/`, `cluster-two` and `cluster-three` folders respectively. You will notice each one is stripped down to relevant peer/orderer organizations that will run in that cluster. You will also notice `ExternalPeerOrgs`and `ExternalOrdererOrgs` in `crypto-config.yaml` files. We will come that in a bit why and when they are required. `configtx.yaml` files are the same for all three as they are part of the same Fabric network.
+
+You can run this sample either on three separate Kubernetes clusters or on three different namespaces in the same cluster. The sample commands below uses different chart names and namespaces, so they can be used as they are on both setups. 
+
+#### Preperation
+
+`Cluster-One` and `Cluster-Three` is exposed via `Ingress` and `Cluster-Two` is exposed via `LoadBalancer`. So, for cluster one and three we need to install Ingress controllers:
+```
+helm install stable/nginx-ingress --name hlf-peer-ingress --namespace kube-system --set controller.service.type=LoadBalancer --set controller.ingressClass=hlf-peer --set controller.service.ports.https=7051 --set controller.service.enableHttp=false --set controller.extraArgs.enable-ssl-passthrough=''
+
+helm install stable/nginx-ingress --name hlf-orderer-ingress  --namespace kube-system --set controller.service.type=LoadBalancer --set controller.ingressClass=hlf-orderer --set controller.service.ports.https=7050 --set controller.service.enableHttp=false --set controller.extraArgs.enable-ssl-passthrough=''
+```
+Notice we are installing one Ingress controller for peers and one for orderers. We are also enabling `ssl-passthrough` on these and using only the `https` port.
+
+Wait for Ingress LoadBalancer services gets their external IP's (this can take a while):
+```
+kubectl -n kube-system get svc -l app=nginx-ingress,component=controller -w
+```
+![Screenshot_peerorg_flow_declarative](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_waiting_for_ingress_loadbalancer_ip.png)
+
+We need three copies of these Helm charts. So, first make two copies of `fabric-kube` folder inside `PIVT` folder and open each of them in a separete console.
+```
+/path/to/PIVT/
+        ├── fabric-kube/
+        ├── fabric-kube-two/
+        └── fabric-kube-three/
+```
+
+#### Crypto material and genesis block
+
+Lets create the crypto material for each of them:
+```
+# run in one
+./init.sh samples/cross-cluster-raft-tls/cluster-one/ samples/chaincode/ false
+
+# run in two
+./init.sh samples/cross-cluster-raft-tls/cluster-two/ samples/chaincode/ false
+
+# run in three
+./init.sh samples/cross-cluster-raft-tls/cluster-three/ samples/chaincode/ false
+```
+The last optional argument `false` tells `init.sh` script not to create the `genesis` block. We will create it manually. But to do that we need:
+* MSP certificates of other peer organization(s)
+* MSP certificates of other orderer organization(s)
+* TLS certificates of other Raft orderer node(s)
+
+Lets copy them (the target empty placeholder directories are already created by `init.sh` script based on `ExternalPeerOrgs`and `ExternalOrdererOrgs`):
+```
+# run in one
+cp -r ../fabric-kube-two/hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/* hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/
+cp -r ../fabric-kube-two/hlf-kube/crypto-config/peerOrganizations/atlantis.com/msp/* hlf-kube/crypto-config/peerOrganizations/atlantis.com/msp/
+cp -r ../fabric-kube-three/hlf-kube/crypto-config/peerOrganizations/nevergreen.nl/msp/* hlf-kube/crypto-config/peerOrganizations/nevergreen.nl/msp/
+cp ../fabric-kube-two/hlf-kube/crypto-config/ordererOrganizations/pivt.nl/orderers/orderer0.pivt.nl/tls/server.crt hlf-kube/crypto-config/ordererOrganizations/pivt.nl/orderers/orderer0.pivt.nl/tls/
+```
+Now we can create the `genesis` block:
+```
+# run in one
+cd hlf-kube/
+configtxgen -profile OrdererGenesis -channelID testchainid -outputBlock ./channel-artifacts/genesis.block
+cd ../
+```
+And copy the `genesis` block to other chart folders:
+```
+# run in one
+cp hlf-kube/channel-artifacts/genesis.block ../fabric-kube-two/hlf-kube/channel-artifacts/
+cp hlf-kube/channel-artifacts/genesis.block ../fabric-kube-three/hlf-kube/channel-artifacts/
+```
+
+#### Launch the network
+
+The rest if more or less the same as launching the whole Raft network in the same cluster. We will first launch the network parts in broken state, collect host aliases and then update the network parts with host aliases.
+
+But first we need to copy TLS CA certs of `Pivt` orderer organization to chart three. `cluster-three` doesn't run an `Orderer` organization, so it needs to connect to an external orderer. TLS certificates are required for that.
+```
+# run in three
+cp ../fabric-kube-two/hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/tlscacerts/* hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/tlscacerts/
+```
+
+Good to go, lets launch network parts:
+```
+# run in one
+helm install ./hlf-kube --name hlf-kube -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml --set peer.launchPods=false --set orderer.launchPods=false
+
+# run in two
+helm install ./hlf-kube --name hlf-kube-two --namespace two -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml --set peer.launchPods=false --set orderer.launchPods=false --set peer.externalService.enabled=true --set orderer.externalService.enabled=true
+
+# run in three
+helm install ./hlf-kube --name hlf-kube-three --namespace three -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml --set peer.launchPods=false --set orderer.launchPods=false 
+```
+
+In `cluster-one` you will notice two external MSP secrets:
+```
+hlf-peer--atlantis--external-msp
+hlf-peer--nevergreen--external-msp
+```
+These are created because of `ExternalPeerOrgs` in `crypto-config.yaml` and required for channel creation.
+
+In `cluster-one` and `cluster-three` you will notice external orderer TLS CA secret:
+```
+hlf-orderer--pivt-external-tlsca
+```
+These are created because of `ExternalOrdererOrgs` in `crypto-config.yaml`. In `cluster-one` it's not used but in `cluster-three` required to communicate with external orderer.
+
+#### Upgrade the networks with host aliases
+
+Before continuing wait for LoadBalancer external IP's are retrieved in `cluster-two`:
+```
+# run in two
+kubectl --namespace two get svc -l addToExternalHostAliases=true -w
+```
+
+Then collect host aliases:
+```
+# run in one
+./collect_host_aliases.sh samples/cross-cluster-raft-tls/cluster-one/
+./collect_external_host_aliases.sh ingress samples/cross-cluster-raft-tls/cluster-one/ 
+
+# run in two
+./collect_host_aliases.sh samples/cross-cluster-raft-tls/cluster-two/ --namespace two
+./collect_external_host_aliases.sh loadbalancer samples/cross-cluster-raft-tls/cluster-two/ --namespace two
+
+# run in three
+./collect_host_aliases.sh samples/cross-cluster-raft-tls/cluster-three/ --namespace three
+./collect_external_host_aliases.sh ingress samples/cross-cluster-raft-tls/cluster-three/ --namespace three
+```
+`collect_external_host_aliases.sh` script is equivalent of `collect_host_aliases.sh` but its output is intended to be used by the rest of the Fabric network which will communicate with this part. Of course, if your domain names are registered to global DNS servers (security wise not a good idea I guess) or you are using another DNS trick you don't need this.
+
+**Important:** When peers/orderers are exposed via Ingress, `collect_external_host_aliases.sh` script assumes Ingress controllers are deployed to `kube-system` namespace and have `hlf-peer-ingress` and `hlf-orderer-ingress` release names respectively.
+
+Now, lets merge host aliases together:
+```
+# run in one
+cat ../fabric-kube-two/samples/cross-cluster-raft-tls/cluster-two/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml
+cat ../fabric-kube-three/samples/cross-cluster-raft-tls/cluster-three/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml
+
+# double check result:
+cat ./samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml
+
+# run in two
+cat ../fabric-kube/samples/cross-cluster-raft-tls/cluster-one/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml
+cat ../fabric-kube-three/samples/cross-cluster-raft-tls/cluster-three/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml
+
+# double check result:
+cat ./samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml
+
+# run in three
+cat ../fabric-kube/samples/cross-cluster-raft-tls/cluster-one/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml
+cat ../fabric-kube-two/samples/cross-cluster-raft-tls/cluster-two/externalHostAliases.yaml >> ./samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml
+
+# double check result:
+cat ./samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml
+```
+
+Now we are ready to update the networks:
+```
+# run in one
+helm upgrade hlf-kube ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml --set peer.ingress.enabled=true --set orderer.ingress.enabled=true
+
+# run in two
+helm upgrade hlf-kube-two ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml --set peer.externalService.enabled=true --set orderer.externalService.enabled=true
+
+# run in three
+helm upgrade hlf-kube-three ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml --set peer.ingress.enabled=true 
+```
+And wait for all pods are up and running as usual.
+
+**Note:** When exposing peers/orderers via LoadBalancer, depending on your cloud provider, you might see contunious error logs at peer and orderer pods like below. For Azure AKS this is the case and caused by health probes done by Azure load balancer. In Azure AKS, as of Februaury 2020, there seems to be no way of disabling health probes. Check annotations specific to your cloud provider.
+```
+2020-02-19 10:44:47.609 UTC [core.comm] ServerHandshake -> ERRO 230 TLS handshake failed with error EOF server=Orderer remoteaddress=10.240.0.6:55843
+```
+#### Channels and Chaincodes
+
+Everything is up and running, now we can create the channels. But before that, have a look at `network.yaml` at `cluster-three`. 
+You will notice the `externalOrderer` section as below. Normally, channel and chaincode flows use the first orderer node of the first orderer organization. Since `cluster-three` does not run an orderer, it needs an external orderer. 
+```
+externalOrderer:
+  enabled: true
+  orgName: Pivt
+  host: orderer0.pivt.nl
+  port: "7050"
+```
+
+Lets create the channels:
+
+**Note:** Don't run these flows in parallel. Wait for completion of each one before proceeding to next one. In particular `channels` can only be created by `cluster-one` as only it has all the MSP certificates.
+```
+# run in one
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+
+# run in two
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml | argo submit - --namespace two --watch
+
+# run in three
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml | argo submit - --namespace three --watch
+```
+
+And install/instantiate the chaincodes:
+```
+# run in one
+helm template chaincode-flow/ -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+
+# run in two
+helm template chaincode-flow/ -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml | argo submit - --namespace two --watch
+
+# run in three
+helm template chaincode-flow/ -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml | argo submit - --namespace three --watch
+```
+
+Congratulations! You now succesfully spread Fabric network over three Kubernetes clusters.
 
 ### [Adding new peer organizations](#adding-new-peer-organizations)
 
