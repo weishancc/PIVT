@@ -1,0 +1,55 @@
+# Default values for hlf-kube.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+retryCount: 4
+
+hyperledgerVersion: 1.4.4
+
+# see the Raft sample in the README for how to enable TLS
+tlsEnabled: false
+
+# use actual domain names like peer0.atlantis.com instead of internal service names
+# this should be set to true for TLS
+useActualDomains: false
+
+# adds additional DNS entries to /etc/hosts files
+# see https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/#adding-additional-entries-with-hostaliases
+# this value should be provided if either tlsEnabled or useActualDomains is set to true
+# see the Raft sample in the README for how to use this
+hostAliases: []
+
+logLevel: info
+
+update:
+  # either application or orderer
+  scope: none
+
+  # this part is used if scope is application
+  application:
+    # either capabilities or jsonPath
+    type: capabilities
+    
+    # set channel capabilities
+    capabilities:
+      version: V1_4_3
+
+    # make arbitrary change by jsonPath
+    jsonPath:
+      # the key to change
+      key: #.channel_group.groups.Application.policies.Admins.policy.value.rule
+      # desired value of the key
+      value: # ANY
+
+     
+flow:
+  channel:
+    # should we update multiple channels in parallel? 
+    parallel: true
+    # fill in this array with channel names to limit updating to these ones
+    include: []
+  
+  sendUpdate:
+    # actually send the signed config update or wait indefinitely
+    enabled: true
+    
