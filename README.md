@@ -695,6 +695,8 @@ This way any arbitrary atomic config value can be updated. It's easy to extend t
 
 _channel-update-flow_ is also declarative and idempotent, you can run it many times with the same settings.
 
+If you are not running majority of organizations and the policy requires majority, sending config update will fail. In that case, you can run the flow with `flow.sendUpdate.enabled=false` flag, this will prevent the flow sending the config update and wait indefinitely. You can copy the signed config update from the pod `/work/signed_update.pb` and send to other organization admins by other means.
+
 **Important:** Pay extreme attention when setting capability versions. If you set them to a non-existing value, like _V1_4_3_, orderers will accept the value but peers will crash immediately when they receive the update. To my knowledge, there is no way of [reverting it back](https://lists.hyperledger.org/g/fabric/message/7775) except restoring from a backup.
 
 ## [Configuration](#configuration)
