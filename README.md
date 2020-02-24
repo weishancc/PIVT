@@ -15,6 +15,7 @@
   * [Cross-cluster Raft network](#cross-cluster-raft-network)
   * [Adding new peer organizations](#adding-new-peer-organizations)
   * [Adding new peers to organizations](#adding-new-peers-to-organizations)
+  * [Updating channel configuration](#updating-channel-configuration)
 * [Configuration](#configuration)
 * [TLS](#tls)
 * [Backup-Restore](#backup-restore)
@@ -676,6 +677,25 @@ in [adding new peer organizations](#adding-new-peer-organizations).
 
 No need to run `peer-org-flow` in this case as peer organizations didn't change. 
 But running it won't hurt anyway, remember it's idempotent ;)
+
+### [Updating channel configuration](#updating-channel-configuration)
+
+The application capabilities version is already set to to _V1_4_2_ for Raft TLS sample, but lets assume it's at an older version and we want to update it:
+```
+helm template channel-update-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml --set update.scope=application --set update.application.capabilities.version='V1_4_2' | argo submit - --watch
+```
+The output will be something like:
+![Screenshot_channel_update_flow](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_channel_update_flow.png)
+
+By default any update at Application level requires _MAJORITY_ of organization admins, lets make it _ANY_ of the admins:
+```
+helm template channel-update-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml --set update.scope=application --set update.application.type=jsonPath --set update.application.jsonPath.key='.channel_group.groups.Application.policies.Admins.policy.value.rule' --set update.application.jsonPath.value="ANY" | argo submit - --watch
+```
+This way any arbitrary atomic config value can be updated. It's easy to extend the flow for more complex config updates.
+
+_channel-update-flow_ is also declarative and idempotent, you can run it many times with the same settings.
+
+**Important:** Pay extreme attention when setting capability versions. If you set them to a non-existing value, like _V1_4_3_, orderers will accept the value but peers will crash immediately when they receive the update. To my knowledge, there is no way of [reverting it back](https://lists.hyperledger.org/g/fabric/message/7775) except restoring from a backup.
 
 ## [Configuration](#configuration)
 
