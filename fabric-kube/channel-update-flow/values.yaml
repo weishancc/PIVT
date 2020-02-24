@@ -22,7 +22,7 @@ hostAliases: []
 logLevel: info
 
 update:
-  # either application or orderer
+  # either application or orderer (orderer is not implemented yet)
   scope: none
 
   # this part is used if scope is application
@@ -32,7 +32,7 @@ update:
     
     # set channel capabilities
     capabilities:
-      version: V1_4_3
+      version: V1_4_2
 
     # make arbitrary change by jsonPath
     jsonPath:
