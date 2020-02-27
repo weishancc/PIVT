@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-hyperledgerVersion: 1.4.4
+hyperledgerVersion: 1.4.5
 
 # see the Raft sample in the README for how to enable TLS
 tlsEnabled: false
@@ -59,6 +59,12 @@ peer:
     # expose peers to outer world with LoadBalancer service type?
     enabled: false
     annotations:
+  # if enabled, podAntiAffinity is used to spread the peer pods in the same organization among nodes
+  # normally no need to disable this
+  antiAffinity:
+    enabled: true
+    # is antiAffinity preferred or required?
+    strict: false
   backup: 
     # take backup of peers during backup procedure?
     enabled: true
@@ -102,6 +108,13 @@ orderer:
   persistence:
     enabled: false
     size: 16Gi
+  # when enabled, internal communication among Raft orderers are done at a different port
+  # useful when you dont want to enable TLS globally (i.e for transparent load balancing)
+  # has no effect if orderer type is not etcdraft
+  cluster:
+    enabled: false
+    # raft cluster communication port. should be in synch with consenters in configtx.yaml
+    port: 7059
   ingress:
     enabled: false
     annotations:
@@ -111,6 +124,12 @@ orderer:
     # expose orderers to outer world with LoadBalancer service type?
     enabled: false
     annotations:
+  # if enabled, podAntiAffinity is used to spread the orderer pods in the same organization among nodes
+  # normally no need to disable this
+  antiAffinity:
+    enabled: true
+    # is antiAffinity preferred or required?
+    strict: false
   backup: 
     # take backup of orderers during backup procedure?
     enabled: true

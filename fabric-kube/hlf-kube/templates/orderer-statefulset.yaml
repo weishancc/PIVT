@@ -66,9 +66,10 @@ spec:
       {{- end }}
       {{- end }}{{""}}
 
-      containers:
 
       {{- if $.Values.backup.enabled }}
+
+      containers:
 
       # rsync-server container
       - name: rsync
@@ -94,6 +95,8 @@ spec:
           value: 0.0.0.0/0
 
       {{- else if $.Values.restore.enabled }}
+
+      containers:
 
       # rsync-server container
       - name: rsync
@@ -129,6 +132,45 @@ spec:
 
       {{- else }}
       
+      {{- if $.Values.orderer.antiAffinity.enabled }}
+      {{- if gt (len $org.Specs) 1 }}
+      affinity:
+        podAntiAffinity:
+      {{- if $.Values.orderer.antiAffinity.strict }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                {{- range $i, $hostInner := $org.Specs }}
+                {{- if not (eq $host.Hostname $hostInner.Hostname) }}
+                - hlf-orderer--{{ $org.Name | lower }}--{{ $hostInner.Hostname | lower }}
+                {{- end }} {{- /* if not same host */ -}}
+                {{- end }} {{- /* org.Specs */ -}}{{""}}
+      {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  {{- range $i, $hostInner := $org.Specs }}
+                  {{- if not (eq $host.Hostname $hostInner.Hostname) }}
+                  - hlf-orderer--{{ $org.Name | lower }}--{{ $hostInner.Hostname | lower }}
+                  {{- end }} {{- /* if not same host */ -}}
+                  {{- end }} {{- /* org.Specs */ -}}{{""}}
+      {{- end }}{{- /* if-else antiAffinity.strict */ -}}
+      {{- end }}{{- /* if peer count > 1 */ -}}
+      {{- end }}{{- /* if antiAffinity.enabled */ -}}{{""}}
+
+      containers:
+
+      # Orderer container
       - name: orderer
         image: hyperledger/fabric-orderer:{{ $.Values.hyperledgerVersion }}
         command: ["sh", "-c", "orderer"]
@@ -170,14 +212,18 @@ spec:
           value: /var/hyperledger/orderer/tls/server.key
         - name: ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE
           value: /var/hyperledger/orderer/tls/server.crt
-        # - name: ORDERER_GENERAL_CLUSTER_SERVERPRIVATEKEY
-        #   value: /var/hyperledger/orderer/tls/server.key
-        # - name: ORDERER_GENERAL_CLUSTER_SERVERCERTIFICATE
-        #   value: /var/hyperledger/orderer/tls/server.crt
-        # - name: ORDERER_GENERAL_CLUSTER_LISTENPORT
-        #   value: "7059"
-        # - name: ORDERER_GENERAL_CLUSTER_LISTENADDRESS
-        #   value: 0.0.0.0
+
+        # Raft cluster configuration 
+        {{- if $.Values.orderer.cluster.enabled }}
+        - name: ORDERER_GENERAL_CLUSTER_SERVERPRIVATEKEY
+          value: /var/hyperledger/orderer/tls/server.key
+        - name: ORDERER_GENERAL_CLUSTER_SERVERCERTIFICATE
+          value: /var/hyperledger/orderer/tls/server.crt
+        - name: ORDERER_GENERAL_CLUSTER_LISTENPORT
+          value: {{ $.Values.orderer.cluster.port | quote }}
+        - name: ORDERER_GENERAL_CLUSTER_LISTENADDRESS
+          value: 0.0.0.0
+        {{- end }}
 
         # Operations configuration 
         {{- if $.Values.orderer.operations.enabled }}

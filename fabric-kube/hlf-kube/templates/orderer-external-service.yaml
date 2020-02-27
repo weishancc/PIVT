@@ -23,6 +23,11 @@ spec:
   - protocol: TCP
     port: 7050
     name: grpc
+  {{- if $.Values.orderer.cluster.enabled }}
+  - protocol: TCP
+    port: {{ $.Values.orderer.cluster.port }}
+    name: grpc-cluster
+  {{- end }}  
 ---
 {{- end }} {{- /* org.Specs */ -}}
 {{- end }} {{- /* OrdererOrgs */ -}}
