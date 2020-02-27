@@ -11,7 +11,8 @@
   * [Creating channels](#creating-channels)
   * [Installing chaincodes](#installing-chaincodes)
   * [Scaled-up Kafka network](#scaled-up-kafka-network)
-  * [Scaled-up Raft network](#scaled-up-raft-network)
+  * [Scaled-up Raft network with TLS](#scaled-up-raft-network-with-tls)
+  * [Scaled-up Raft network without TLS](#scaled-up-raft-network-without-tls)
   * [Cross-cluster Raft network](#cross-cluster-raft-network)
   * [Adding new peer organizations](#adding-new-peer-organizations)
   * [Adding new peers to organizations](#adding-new-peers-to-organizations)
@@ -80,7 +81,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 ### Scaled Up Raft Network Architecture
 
 ![Scaled Up Raft Network](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/HL_in_Kube_raft.png)
-**Note:** Due to TLS, transparent load balancing is not possible with Raft orderer as of Fabric 1.4.2.
+**Note:** For transparent load balancing TLS should be disabled. This is only possible for Raft orderers since Fabric 1.4.5. See the [Scaled-up Raft network without TLS](#scaled-up-raft-network-without-tls) sample for details.
 
 ## [Go Over Samples](#go-over-samples)
 
@@ -212,8 +213,8 @@ And install chaincodes:
 ```
 helm template chaincode-flow/ -f samples/scaled-kafka/network.yaml -f samples/scaled-kafka/crypto-config.yaml | argo submit - --watch
 ```
-### [Scaled-up Raft network](#scaled-up-raft-network)
-Now, lets launch a scaled up network based on three Raft orderer nodes spanning two Orderer organizations. This sample also demonstrates how to enable TLS and use actual domain names for peers and orderers instead of internal Kubernetes service names. Enabling TLS globally is mandatory as of Fabric 1.4.2. This is [resolved](https://jira.hyperledger.org/browse/FAB-15648) but not released yet.
+### [Scaled-up Raft network with TLS](#scaled-up-raft-network-with-tls)
+Now, lets launch a scaled up network based on three Raft orderer nodes spanning two Orderer organizations. This sample also demonstrates how to enable TLS and use actual domain names for peers and orderers instead of internal Kubernetes service names. Enabling TLS globally was mandatory until Fabric 1.4.5. See the [Scaled-up Raft network without TLS](#scaled-up-raft-network-without-tls) sample for running Raft orderers without globally enabling TLS.
 
 Compare [scaled-raft-tls/configtx.yaml](fabric-kube/samples/scaled-raft-tls/configtx.yaml) with other samples, in particular it uses actual domain names like _peer0.atlantis.com_ instead of internal Kubernetes service names like _hlf-peer--atlantis--peer0_. This is necessary for enabling TLS since otherwise TLS certificates won't match service names.
 
@@ -300,6 +301,11 @@ And install chaincodes:
 ```
 helm template chaincode-flow/ -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/hostAliases.yaml | argo submit - --watch
 ```
+
+### [Scaled-up Raft network without TLS](#scaled-up-raft-network-without-tls)
+
+// TODO
+
 ### [Cross-cluster Raft network](#cross-cluster-raft-network)
 
 #### Overview
@@ -854,7 +860,9 @@ kubectl  get pod --watch
 
 ### TLS
 
-Transparent load balancing is not possible with TLS as of Fabric 1.4.2. So, instead of `Peer-Org`, `Orderer-Org` or `Orderer-LB` services, you need to connect to individual `Peer` and `Orderer` services.
+Transparent load balancing is not possible when TLS is globally enabled. So, instead of `Peer-Org`, `Orderer-Org` or `Orderer-LB` services, you need to connect to individual `Peer` and `Orderer` services.
+
+Running Raft orderers without globally enabling TLS is possible since Fabric 1.4.5. See [Scaled-up Raft network without TLS](#scaled-up-raft-network-without-tls) sample for details.
 
 ### Multiple Fabric networks in the same Kubernetes cluster
 
