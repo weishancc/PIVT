@@ -37,6 +37,7 @@ This repository contains a couple of Helm charts to:
   * Create the channels, join peers to channels, update channels for Anchor peers
   * Install/Instantiate all chaincodes, or some of them, or upgrade them to newer version
 * Add new peer organizations to an already running network declaratively
+* Make channel config updates declaratively
 * Backup and restore the state of whole network
 
 **IMPORTANT:** Declarative flows use our home built [CLI tools](https://hub.docker.com/u/raft) 
