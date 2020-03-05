@@ -680,7 +680,7 @@ cp tmp/configtx.yaml tmp/crypto-config.yaml tmp/network.yaml samples/simple/
 
 Adding new peer organizations to a network which utilizes Raft orderer is similar. But there is one point to be aware of: After adding new organizations we need to update the rest of the network with new host aliases information. This means existing pods will be restarted and will lose all the data. That's why persistence should be enabled.
 
-First tear down and re-launch and populate the Raft network as described in [scaled-up-raft-network](scaled-up-raft-network) but pass the following additional flag: `-f samples/scaled-raft-tls/persistence.yaml`
+First tear down and re-launch and populate the Raft network as described in [scaled-up-raft-network](#scaled-up-raft-network-with-tls)(scaled-up-raft-network) but pass the following additional flag: `-f samples/scaled-raft-tls/persistence.yaml`
 
 At this point we can update the original configtx.yaml, crypto-config.yaml and network.yaml for the new organizations. First take backup of the originals:
 ```
