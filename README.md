@@ -89,7 +89,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 ### [Launching The Network](#launching-the-network)
 First install chart dependencies, you need to do this only once:
 ```
-helm repo add kafka http://storage.googleapis.com/kubernetes-charts-incubator
+helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
 helm dependency update ./hlf-kube/
 ```
 Then create necessary stuff:
