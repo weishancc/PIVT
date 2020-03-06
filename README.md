@@ -61,7 +61,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 
 ## [Requirements](#requirements)
 * A running Kubernetes cluster, Minikube should also work, but not tested
-* [HL Fabric binaries](https://hyperledger-fabric.readthedocs.io/en/release-1.4/install.html) (There is an [issue](https://jira.hyperledger.org/browse/FAB-16376?focusedCommentId=63968&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-63968) with **cryptogen** 1.4.3, so use 1.4.2 or 1.4.1)
+* [HL Fabric binaries](https://hyperledger-fabric.readthedocs.io/en/release-1.4/install.html)
 * [Helm](https://github.com/helm/helm/releases/tag/v2.11.0), developed with 2.11, newer 2.xx versions should also work
 * [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://pypi.org/project/yq/) 2.6+
 * [Argo](https://github.com/argoproj/argo), both CLI and Controller 2.4.0+
