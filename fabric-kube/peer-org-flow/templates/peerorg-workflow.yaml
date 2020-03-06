@@ -56,6 +56,8 @@ spec:
     secret:
       secretName: hlf-orderer--{{ $org.Name | lower }}--admin-msp
       items:
+      - key: config.yaml
+        path: config.yaml
       - key: cert.pem
         path: signcerts/cert.pem
       - key: key.pem
@@ -80,12 +82,14 @@ spec:
     secret:
       secretName: hlf-peer--{{ $org.Name | lower }}--admin-msp
       items:
+      - key: config.yaml
+        path: config.yaml
       - key: cert.pem
         path: signcerts/cert.pem
       - key: key.pem
         path: keystore/key.pem
       - key: cacert.pem
-        path: cacerts/cert.pem
+        path: cacerts/ca.{{ $org.Domain }}-cert.pem
       - key: tlscacert.pem
         path: tlscacerts/cert.pem
       - key: admincert.pem

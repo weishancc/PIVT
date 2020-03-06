@@ -7,11 +7,13 @@ OrdererOrgs:
   # ---------------------------------------------------------------------------
   - Name: Groeifabriek
     Domain: groeifabriek.nl
+    EnableNodeOUs: true
     Specs:
       - Hostname: orderer0
       - Hostname: orderer1
   - Name: Pivt
     Domain: pivt.nl
+    EnableNodeOUs: true
     Specs:
       - Hostname: orderer0
       

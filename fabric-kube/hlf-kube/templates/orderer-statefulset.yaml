@@ -46,12 +46,14 @@ spec:
         secret:
           secretName: hlf-orderer--{{ $org.Name | lower }}--{{ $host.Hostname | lower }}-msp
           items:
+          - key: config.yaml
+            path: config.yaml
           - key: cert.pem
             path: signcerts/cert.pem
           - key: key.pem
             path: keystore/key.pem
           - key: cacert.pem
-            path: cacerts/cert.pem
+            path: cacerts/ca.{{ $org.Domain }}-cert.pem
           - key: admincert.pem
             path: admincerts/cert.pem
       - name: genesis
