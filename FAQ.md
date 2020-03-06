@@ -49,3 +49,14 @@ For storing backup contents, using an Argo flow seemed more convenient. Volume s
 Similar to above, cloud native disk snaphots do not provide any consistency guarantees.
 
 Also, taking snapshot and restoring from it requires lots of cloud specific scripting. Our flow feels much more convenient as it will work on any cloud provider or even locally.
+
+### What are those `no pem content for file` warnings?
+
+You might see `warning` logs like below when orderer and peer pods are first launching or in Argo task logs:
+```
+2020-03-05 23:44:18.965 UTC [msp] getPemMaterialFromDir -> WARN 001 Failed reading file /etc/hyperledger/fabric/msp/admincerts/cert.pem: no pem content for file /etc/hyperledger/fabric/msp/admincerts/cert.pem
+```
+
+Theses logs are `harmless`and happens when you create the certificates with `cryptogen` version `1.4.3+`.
+
+Since version `1.4.3`, `cryptogen` does not create certificates in the `admincerts` folder any more but creates `OU=admin` classification in the admin certificate. As a result, `hlf-kube` chart mounts an empty file to `admincerts/cert.pem` and we got this warning. This mount is necessary for `cryptogen` versions prior to `1.4.3` and hence for backward compatibility.
