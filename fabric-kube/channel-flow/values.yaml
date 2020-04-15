@@ -25,7 +25,8 @@ externalOrderer:
   enabled: false
   # name of external orderer org. used for mounting TLS CA secret
   orgName: # Pivt
-  host: # orderer0.pivt.nl
+  domain: # pivt.nl
+  host: # orderer0
   port: "7050"
 
 logLevel: info

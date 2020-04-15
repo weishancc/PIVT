@@ -1,3 +1,7 @@
+{{- if not .Values.OrdererOrgs }}
+  {{- fail "Peer-Org flow cannot be run without orderer organizations" }}
+{{- end }}
+
 {{- $ordererOrg := index .Values.OrdererOrgs 0 }}
 {{- $ordererAddress := .Values.useActualDomains | ternary (printf "%s.%s" (index $ordererOrg.Specs 0).Hostname $ordererOrg.Domain) (printf "hlf-orderer--%s--%s" ($ordererOrg.Name | lower) ((index $ordererOrg.Specs 0).Hostname | lower)) }} 
 {{- $genesisProfile := index .Values.Profiles .Values.network.genesisProfile }}
@@ -51,6 +55,17 @@ spec:
         path: tlscacerts/tlsca.{{ $org.Domain}}-cert.pem
 {{- end }} {{- /* PeerOrgs */ -}}{{""}}
 
+{{- range $i, $org := .Values.ExternalPeerOrgs }}
+  - name: org-{{ $org.Name | lower }}-msp
+    secret:
+      secretName: hlf-peer--{{ $org.Name | lower }}--external-msp
+      items:
+      - key: config.yaml
+        path: config.yaml
+      - key: cacert.pem
+        path: cacerts/ca.{{ $org.Domain}}-cert.pem
+{{- end }} {{- /* ExternalPeerOrgs */ -}}{{""}}
+
 {{- range $i, $org := .Values.OrdererOrgs }}
   - name: orderer-{{ $org.Name | lower }}-admin-msp
     secret:
@@ -63,11 +78,11 @@ spec:
       - key: key.pem
         path: keystore/key.pem
       - key: cacert.pem
-        path: cacerts/cert.pem
+        path: cacerts/ca.{{ $org.Domain}}-cert.pem
       - key: tlscacert.pem
-        path: tlscacerts/cert.pem
+        path: tlscacerts/tlsca.{{ $org.Domain}}-cert.pem
       - key: admincert.pem
-        path: admincerts/cert.pem
+        path: admincerts/Admin@{{ $org.Domain}}-cert.pem
 
 {{- range $i, $host := $org.Specs }}
   - name: orderer-{{ $org.Name | lower }}-{{ $host.Hostname | lower }}-tls
@@ -201,7 +216,7 @@ spec:
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
   - name: channel-orgs--{{ $channel.name }}
     steps:
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
     - - name: {{ $orgName }}
         template: channel-org--{{ $channel.name }}--{{ $orgName }}
 {{- end }} {{- /* channel.orgs */ -}}
@@ -213,7 +228,7 @@ spec:
 {{- if $.Values.flow.channel.enabled }}
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
   - name: channel-org--{{ $channel.name }}--{{ $orgName }}
     steps:
     - - name: check-org-in-channel
@@ -257,7 +272,7 @@ spec:
 {{- if $.Values.flow.channel.enabled }}
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
   - name: add-org-to-channel--{{ $channel.name }}--{{ $orgName }}
     steps:
     - - name: create-channel-config-update
@@ -318,16 +333,16 @@ spec:
 {{- if $.Values.flow.channel.enabled }}
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
   - name: sign-channel-config-update--{{ $channel.name }}--{{ $orgName }}
     inputs:
       artifacts:
       - name: config_update_tx
     steps: 
 {{- $_ := set $vars "firstSignature" true }}
-{{- range $orgName := $channel.orgs }}
-    - - name: maybe-sign-channel-config-update--{{ $orgName }}
-        template: maybe-sign-channel-config-update--{{ $channel.name }}--{{ $orgName }}
+{{- range $signerOrgName := $channel.orgs }}
+    - - name: maybe-sign-channel-config-update--{{ $signerOrgName }}
+        template: maybe-sign-channel-config-update--{{ $channel.name }}--{{ $signerOrgName }}
         arguments:
           artifacts:
           - name: config_update_tx
@@ -337,7 +352,7 @@ spec:
             from: "{{ "{{" }}steps.maybe-sign-channel-config-update--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
           {{- end }}
 {{- $_ := set $vars "firstSignature" false }}          
-{{- $_ := set $vars "previousOrgName" $orgName }}
+{{- $_ := set $vars "previousOrgName" $signerOrgName }}
 {{- end }} {{- /* channel.orgs */ -}}{{""}}
     outputs:
       artifacts:
@@ -373,11 +388,11 @@ spec:
       source: |
           mkdir -p /work && 
           
-          peer channel fetch config /work/config_block.pb -c {{ $.Values.ordererSystemChannel }} -o {{ $ordererAddress }}:7050 \
+          peer channel fetch config /work/config_block.pb -c {{ $.Values.network.systemChannelID }} -o {{ $ordererAddress }}:7050 \
               {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
               {{- end }}
-          && >&2 echo '-- fetched config block from orderer system channel {{ $.Values.ordererSystemChannel }}' &&
+          && >&2 echo '-- fetched config block from orderer system channel {{ $.Values.network.systemChannelID }}' &&
           
           configtxlator proto_decode --input /work/config_block.pb --type common.Block \
                 | jq .data.data[0].payload.data.config > /work/config.json &&
@@ -435,7 +450,7 @@ spec:
 {{- $ordererOrg := index $.Values.OrdererOrgs 0}}
 {{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
 
-{{- range $i, $peerOrg := $.Values.PeerOrgs }}
+{{- range $i, $peerOrg := concat $.Values.PeerOrgs (default list $.Values.ExternalPeerOrgs) }}
 {{- if eq $orgName $peerOrg.Name }}
 
   - name: create-system-channel-config-update--{{ $consortium }}--{{ $orgName }}
@@ -456,18 +471,18 @@ spec:
           configtxgen -printOrg {{ $orgName }}MSP -configPath=/hlf_config/ > /work/new_org.json && 
           echo '-- printed new org {{ $orgName }}MSP to new_org.json' && 
             
-          peer channel fetch config /work/config_block.pb -c {{ $.Values.ordererSystemChannel }} -o {{ $ordererAddress }}:7050 \
+          peer channel fetch config /work/config_block.pb -c {{ $.Values.network.systemChannelID }} -o {{ $ordererAddress }}:7050 \
               {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
               {{- end }}
-          && echo '-- fetched config block from orderer system channel {{ $.Values.ordererSystemChannel }}' && 
+          && echo '-- fetched config block from orderer system channel {{ $.Values.network.systemChannelID }}' && 
                       
           configtxlator proto_decode --input /work/config_block.pb --type common.Block \
                 | jq .data.data[0].payload.data.config > /work/config.json && 
           echo '-- trimmed envelope from config block and converted to json' && 
           
           /hlf-scripts/add_newpeerorg_to_consortium.sh {{ $orgName }}MSP {{ $consortium }} /work/new_org.json /work/config.json /work/updated_config.json && 
-          /hlf-scripts/prepare_config_update_block.sh {{ $.Values.ordererSystemChannel }} /work/config.json /work/updated_config.json /work/update.pb
+          /hlf-scripts/prepare_config_update_block.sh {{ $.Values.network.systemChannelID }} /work/config.json /work/updated_config.json /work/update.pb
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -544,7 +559,7 @@ spec:
 {{- $ordererOrg := index $.Values.OrdererOrgs 0}}
 {{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
 
-{{- range $i, $peerOrg := $.Values.PeerOrgs }}
+{{- range $i, $peerOrg := concat $.Values.PeerOrgs (default list $.Values.ExternalPeerOrgs) }}
 {{- if eq $orgName $peerOrg.Name }}
 
   - name: send-system-channel-config-update--{{ $consortium }}--{{ $orgName }}
@@ -557,11 +572,19 @@ spec:
         
     container:
       image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $.Values.ordererSystemChannel }} -o {{ $ordererAddress }}:7050 \
+
+      {{- if $.Values.flow.sendUpdate.systemChannel.enabled }}
+      command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $.Values.network.systemChannelID }} -o {{ $ordererAddress }}:7050 \
                                   {{- if $.Values.tlsEnabled }}
                                       --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
                                   {{- end }}
                                   "]
+      {{- else }}
+      command: ["sh", "-c", "echo 'not sending system channel config update, waiting for the file /continue' && \
+                             echo 'manually copy the file /work/signed_update.pb from the Argo pod and exec \"touch /continue\" to continue..' && \
+                             while [ ! -f /continue ]; do sleep 1; done && \
+                             echo '/continue file is in place, exiting' "]
+      {{- end }}
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -666,7 +689,7 @@ spec:
 {{- if $.Values.flow.channel.enabled }}
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
 
 {{- $ordererOrg := index $.Values.OrdererOrgs 0}}
 {{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
@@ -731,9 +754,9 @@ spec:
 {{- if $.Values.flow.channel.enabled }}
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
-{{- range $orgName := $channel.orgs }}
+{{- range $orgName := concat $channel.orgs (default list $channel.externalOrgs) }}
 
-{{- range $i, $org := $.Values.PeerOrgs }}
+{{- range $i, $org := concat $.Values.PeerOrgs (default list $.Values.ExternalPeerOrgs) }}
 {{- if eq $orgName $org.Name }}
 
 {{- $ordererOrg := index $.Values.OrdererOrgs 0}}
@@ -899,11 +922,19 @@ spec:
         
     container:
       image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+
+      {{- if $.Values.flow.sendUpdate.channel.enabled }}
       command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
                                   {{- if $.Values.tlsEnabled }}
                                       --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
                                   {{- end }}
                                   "]
+      {{- else }}
+      command: ["sh", "-c", "echo 'not sending channel config update for channel {{ $channel.name }}, waiting for the file /continue' && \
+                             echo 'manually copy the file /work/signed_update.pb from the Argo pod and exec \"touch /continue\" to continue..' && \
+                             while [ ! -f /continue ]; do sleep 1; done && \
+                             echo '/continue file is in place, exiting' "]
+      {{- end }}
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca

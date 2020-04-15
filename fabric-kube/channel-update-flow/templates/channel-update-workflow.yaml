@@ -109,8 +109,11 @@ spec:
 {{- if eq $.Values.update.scope "application" }}
     - - name: application
         template: application
+{{- else if eq $.Values.update.scope "orderer" }}
+    - - name: orderer
+        template: orderer
 {{- else }}
-    {{ fail (printf "Uknown update.scope: '%s'" $.Values.update.scope ) }}
+    {{ fail (printf "Uknown update.scope: %s" $.Values.update.scope ) }}
 {{- end }} {{- /* update.scope */ -}}{{""}}
 
 # second level: application
@@ -128,6 +131,11 @@ spec:
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
 
+# second level: orderer
+  - name: orderer
+    steps:
+    - - name: system-channel
+        template: system-channel
 
 # third level: channel templates
 {{- range $i, $channel := $.Values.network.channels }}
@@ -141,6 +149,15 @@ spec:
         when: "{{ "{{" }}steps.check-channel-update-required.outputs.result{{ "}}" }}"
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
+
+# third level: system-channel template
+  - name: system-channel
+    steps:
+    - - name: check-system-channel-update-required
+        template: check-system-channel-update-required
+    - - name: do-system-channel-update
+        template: do-system-channel-update
+        when: "{{ "{{" }}steps.check-system-channel-update-required.outputs.result{{ "}}" }}"
 
 
 # forth level: do-channel-update templates
@@ -165,6 +182,23 @@ spec:
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
 
+# forth level: do-system-channel-update templates
+  - name: do-system-channel-update
+    steps:
+    - - name: create-system-channel-config-update
+        template: create-system-channel-config-update
+    - - name: sign-system-channel-config-update
+        template: sign-system-channel-config-update
+        arguments:
+          artifacts:
+          - name: config_update_tx
+            from: "{{ "{{" }}steps.create-system-channel-config-update.outputs.artifacts.config_update_tx{{ "}}" }}"
+    - - name: send-system-channel-config-update
+        template: send-system-channel-config-update
+        arguments:
+          artifacts:
+          - name: signed_config_update_tx
+            from: "{{ "{{" }}steps.sign-system-channel-config-update.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
 
 # fifth level sign-channel-config-update templates
 {{- range $i, $channel := $.Values.network.channels }}
@@ -197,6 +231,31 @@ spec:
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
 
+# fifth level sign-system-channel-config-update templates
+  - name: sign-system-channel-config-update
+    inputs:
+      artifacts:
+      - name: config_update_tx
+    steps: 
+{{- $_ := set $vars "firstSignature" true }}
+{{- range $i, $ordererOrg := $.Values.OrdererOrgs}}
+    - - name: sign-system-channel-config-update--{{ $ordererOrg.Name }}
+        template: sign-system-channel-config-update--{{ $ordererOrg.Name }}
+        arguments:
+          artifacts:
+          - name: config_update_tx
+          {{- if $vars.firstSignature }}
+            from: "{{ "{{" }}inputs.artifacts.config_update_tx{{ "}}" }}"
+          {{- else }}
+            from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
+          {{- end }}
+{{- $_ := set $vars "firstSignature" false }}          
+{{- $_ := set $vars "previousOrgName" $ordererOrg.Name }}
+{{- end }} {{- /* OrdererOrgs  */ -}}{{""}}
+    outputs:
+      artifacts:
+      - name: signed_config_update_tx
+        from: "{{ "{{" }}steps.sign-system-channel-config-update--{{ $vars.previousOrgName }}.outputs.artifacts.signed_config_update_tx{{ "}}" }}"
 
 # leaf sign-system-channel-config-update templates
 {{- range $i, $ordererOrg := $.Values.OrdererOrgs}}
@@ -235,7 +294,7 @@ spec:
 {{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
 
   - name: check-channel-update-required--{{ $channel.name }}
-    # channel: {{ $channel }}
+    # channel: {{ $channel.name }}
     inputs:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
@@ -243,7 +302,10 @@ spec:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
       image: raft/hl-fabric-tools:1.4.3
       command: [bash]
+
       # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
+      {{- if $.Values.flow.createUpdate.channel.enabled }}
+
       source: |
           mkdir -p /work && 
           
@@ -284,8 +346,16 @@ spec:
           fi          
 
       {{- else }}
-          {{ fail (printf "Uknown update.application.type: '%s'" $.Values.update.application.type ) }}
+          {{ fail (printf "Uknown update.application.type: %s" $.Values.update.application.type ) }}
       {{- end }} {{- /* update.application.type */ -}}{{""}}
+
+      {{- else }} {{- /* flow.createUpdate.channel.enabled */ -}}{{""}}
+
+      source: |
+          echo >&2 '-- flow.createUpdate.channel.enabled is false, config update will be provided by user. returning true' &&
+          echo true
+
+      {{- end }} {{- /* flow.createUpdate.channel.enabled */ -}}{{""}}
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -312,6 +382,28 @@ spec:
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
 
+# leaf check-system-channel-update-required templates
+  - name: check-system-channel-update-required
+    inputs:
+    retryStrategy:
+      limit: {{ $.Values.retryCount }}
+    script:
+      # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: raft/hl-fabric-tools:1.4.3
+      command: [bash]
+
+      # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
+      {{- if $.Values.flow.createUpdate.systemChannel.enabled }}
+
+        {{ fail "create update for system channel is not implemented yet. 'flow.createUpdate.systemChannel.enabled' should be set to false and config update should be provided by user" }}
+
+      {{- else }} {{- /* flow.createUpdate.systemChannel.enabled */ -}}{{""}}
+
+      source: |
+          echo >&2 '-- flow.createUpdate.systemChannel.enabled is false, config update will be provided by user. returning true' &&
+          echo true
+
+      {{- end }} {{- /* flow.createUpdate.systemChannel.enabled */ -}}{{""}}
 
 # leaf create-channel-config-update templates
 {{- range $i, $channel := $.Values.network.channels }}
@@ -331,6 +423,8 @@ spec:
     script:
       image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
       command: [bash]
+
+      {{- if $.Values.flow.createUpdate.channel.enabled }}
       source: |
         mkdir -p /work &&
                              
@@ -354,10 +448,27 @@ spec:
           echo >&2 "-- set {{ $.Values.update.application.jsonPath.key }} to {{ $.Values.update.application.jsonPath.value }} and wrote to /work/updated_config.json" &&
           
       {{- else }}
-          {{ fail (printf "Uknown update.application.type: '%s'" $.Values.update.application.type ) }}
+          {{ fail (printf "Uknown update.application.type: %s" $.Values.update.application.type ) }}
       {{- end }} {{- /* update.application.type */ -}}{{""}}
         
         /hlf-scripts/prepare_config_update_block.sh {{ $channel.name }} /work/config.json /work/updated_config.json /work/update.pb
+
+      {{- else }} {{- /* flow.createUpdate.channel.enabled */ -}}{{""}}
+      source: |
+        mkdir -p /work &&
+
+        echo 'not creating channel config update for channel {{ $channel.name }}, waiting for the file /continue' && 
+        echo 'manually copy the file /work/update.pb to Argo pod and exec "touch /continue" to continue..' &&
+
+        while [ ! -f /continue ]; do sleep 1; done && 
+        echo '/continue file is in place, continuing..' &&
+        if [ ! -f /work/update.pb ]; then
+          echo '/work/update.pb is not provided, exiting with error'
+          exit 1
+        fi
+
+      {{- end }} {{- /* flow.createUpdate.channel.enabled */ -}}{{""}}
+      
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -387,7 +498,42 @@ spec:
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
 
+# leaf create-system-channel-config-update templates
+{{- $ordererOrg := index $.Values.OrdererOrgs 0}}
+{{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
 
+  - name: create-system-channel-config-update
+    outputs:
+      artifacts:
+      - name: config_update_tx
+        path: /work/update.pb
+    retryStrategy:
+      limit: {{ $.Values.retryCount }}
+        
+    script:
+      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      command: [bash]
+
+      {{- if $.Values.flow.createUpdate.systemChannel.enabled }}
+
+        {{ fail "create update for system channel is not implemented yet. 'flow.createUpdate.systemChannel.enabled' should be set to false and config update should be provided by user" }}
+
+      {{- else }} {{- /* flow.createUpdate.systemChannel.enabled */ -}}{{""}}
+      source: |
+        mkdir -p /work &&
+
+        echo 'not creating system channel config update, waiting for the file /continue' && 
+        echo 'manually copy the file /work/update.pb to Argo pod and exec "touch /continue" to continue..' &&
+
+        while [ ! -f /continue ]; do sleep 1; done && 
+        echo '/continue file is in place, continuing..' &&
+        if [ ! -f /work/update.pb ]; then
+          echo '/work/update.pb is not provided, exiting with error'
+          exit 1
+        fi
+
+      {{- end }} {{- /* flow.createUpdate.systemChannel.enabled */ -}}{{""}}
+      
 # leaf sign-channel-config-update templates
 {{- range $i, $channel := $.Values.network.channels }}
 {{- if or (not $.Values.flow.channel.include) (has $channel.name $.Values.flow.channel.include) }}
@@ -459,14 +605,18 @@ spec:
     container:
       image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
 
-      {{- if $.Values.flow.sendUpdate.enabled }}
+      {{- if $.Values.flow.sendUpdate.channel.enabled }}
       command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
                                   {{- if $.Values.tlsEnabled }}
                                       --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
                                   {{- end }}
                                   "]
       {{- else }}
-      command: ["sh", "-c", "echo 'not sending config update, waiting indefinitely..' && while true; do sleep 60; done"]
+      command: ["sh", "-c", "echo 'not sending channel config update for channel {{ $channel.name }}, waiting for the file /continue' && \
+                             echo 'manually copy the file /work/signed_update.pb from the Argo pod and exec \"touch /continue\" to continue..' && \
+                             \
+                             while [ ! -f /continue ]; do sleep 1; done && \
+                             echo '/continue file is in place, quiting' "]
       {{- end }}
 
       volumeMounts:
@@ -491,4 +641,54 @@ spec:
 
 {{- end }} {{- /* if channel included */ -}}
 {{- end }} {{- /* channels */ -}}{{""}}
+
+# leaf send-system-channel-config-update template
+{{- $ordererOrg := index $.Values.OrdererOrgs 0}}
+{{- $ordererHost := (index $ordererOrg.Specs 0).Hostname }}
+
+  - name: send-system-channel-config-update
+    inputs:
+      artifacts:
+      - name: signed_config_update_tx
+        path: /work/signed_update.pb
+    retryStrategy:
+      limit: {{ $.Values.retryCount }}
+        
+    container:
+      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+
+      {{- if $.Values.flow.sendUpdate.systemChannel.enabled }}
+      command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $.Values.network.systemChannelID }} -o {{ $ordererAddress }}:7050 \
+                                  {{- if $.Values.tlsEnabled }}
+                                      --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+                                  {{- end }}
+                                  "]
+      {{- else }}
+      command: ["sh", "-c", "echo 'not sending system channel config update, waiting for the file /continue' && \
+                             echo 'manually copy the file /work/signed_update.pb from the Argo pod and exec \"touch /continue\" to continue..' && \
+                             \
+                             while [ ! -f /continue ]; do sleep 1; done && \
+                             echo '/continue file is in place, exiting' "]
+      {{- end }}
+
+      volumeMounts:
+        - mountPath: /hlf_config/orderer-tlsca
+          name: orderer-tlsca
+        - mountPath: /etc/hyperledger/fabric/tls/
+          name: orderer-{{ $ordererOrg.Name | lower }}-{{ $ordererHost | lower }}-tls
+        - mountPath: /etc/hyperledger/fabric/msp/
+          name: orderer-{{ $ordererOrg.Name | lower }}-admin-msp
+      
+      env:
+        - name: FABRIC_LOGGING_SPEC
+          value: {{ $.Values.logLevel }}
+        - name: CORE_PEER_LOCALMSPID
+          value: {{ $ordererOrg.Name }}MSP
+        - name: CORE_PEER_TLS_CERT_FILE
+          value: /etc/hyperledger/fabric/tls/server.crt
+        - name: CORE_PEER_TLS_KEY_FILE
+          value: /etc/hyperledger/fabric/tls/server.key
+        - name: CORE_PEER_TLS_ROOTCERT_FILE
+          value: /etc/hyperledger/fabric/tls/ca.crt
+
 ---

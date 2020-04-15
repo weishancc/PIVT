@@ -21,8 +21,12 @@ hostAliases: []
 
 logLevel: info
 
+network: 
+  # orderer system channel
+  systemChannelID: testchainid
+
 update:
-  # either application or orderer (orderer is not implemented yet)
+  # either application or orderer
   scope: none
 
   # this part is used if scope is application
@@ -41,6 +45,8 @@ update:
       # desired value of the key
       value: # ANY
 
+  # this part is used if scope is orderer (not implemented yet)
+  orderer:
      
 flow:
   channel:
@@ -49,7 +55,21 @@ flow:
     # fill in this array with channel names to limit updating to these ones
     include: []
   
+  createUpdate:
+    channel:
+      # actually create the config update for channels or wait until the file /continue is in place
+      # if not enabled, user is supposed to copy the config update block to /work/update.pb in pod and then create (touch) /continue file
+      enabled: true    
+    systemChannel:
+      # actually create the config update for system (orderer) channel or wait until the file /continue is in place
+      # if not enabled, user is supposed to copy the config update block to /work/update.pb in pod and then create (touch) /continue file
+      enabled: false
+
   sendUpdate:
-    # actually send the signed config update or wait indefinitely
-    enabled: true
-    
+    channel:
+      # actually send the signed config update for channels or wait until the file /continue is in place
+      enabled: true    
+    systemChannel:
+      # actually send the signed config update for system channels or wait until the file /continue is in place
+      enabled: true
+      
