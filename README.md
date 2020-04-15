@@ -62,7 +62,7 @@ This work is licensed under the same license with HL Fabric; [Apache License 2.0
 ## [Requirements](#requirements)
 * A running Kubernetes cluster, Minikube should also work, but not tested
 * [HL Fabric binaries](https://hyperledger-fabric.readthedocs.io/en/release-1.4/install.html)
-* [Helm](https://github.com/helm/helm/releases/tag/v2.11.0), developed with 2.11, newer 2.xx versions should also work
+* [Helm](https://github.com/helm/helm/releases/tag/v2.16.0), 2.16 or newer 2.xx versions
 * [jq](https://stedolan.github.io/jq/download/) 1.5+ and [yq](https://pypi.org/project/yq/) 2.6+
 * [Argo](https://github.com/argoproj/argo), both CLI and Controller 2.4.0+
 * [Minio](https://github.com/argoproj/argo/blob/master/docs/configure-artifact-repository.md), only required for backup/restore and new-peer-org flows
@@ -582,7 +582,8 @@ You will notice the `externalOrderer` section as below. Normally, channel and ch
 externalOrderer:
   enabled: true
   orgName: Pivt
-  host: orderer0.pivt.nl
+  domain: pivt.nl
+  host: orderer0
   port: "7050"
 ```
 
@@ -697,7 +698,7 @@ Create new crypto material:
 ./extend.sh samples/scaled-raft-tls
 ```
 
-Update the network for new crypto material and configtx and launch new peers 
+Update the network for the new crypto material and configtx and launch new peers:
 ```
 helm upgrade hlf-kube ./hlf-kube -f samples/scaled-raft-tls/network.yaml -f samples/scaled-raft-tls/crypto-config.yaml -f samples/scaled-raft-tls/persistence.yaml -f samples/scaled-raft-tls/hostAliases.yaml
 ```
@@ -733,6 +734,292 @@ Please note, we increased the chaincode version. This is required to upgrade the
 Restore original files
 ```
 cp tmp/configtx.yaml tmp/crypto-config.yaml tmp/network.yaml samples/scaled-raft-tls/
+```
+
+#### Cross-cluster Raft orderer network
+
+Now lets add new peer organizations to a cross-cluster network. This is the most complicated one. Complexity also changes depending on if one part is running the majority of orderer and/or peer organizations or not.
+
+The final layout will be like this (new ones are marked with ****):
+```
+Cluster-One:
+    OrdererOrgs:
+    - Name: Groeifabriek
+      NodeCount: 2
+    PeerOrgs:
+    - Name: Karga
+      PeerCount: 2
+    - Name: Cimmeria   ****
+      PeerCount: 2
+    
+Cluster-Two:
+    OrdererOrgs:
+    - Name: Pivt
+      NodeCount: 1
+    PeerOrgs:
+    - Name: Atlantis
+      PeerCount: 2
+  
+Cluster-Three:
+    PeerOrgs:
+    - Name: Nevergreen
+      PeerCount: 2
+    - Name: Valhalla   ****
+      PeerCount: 2
+```      
+Channel and chaincode wise, it will be exactly the same as extended [Raft network](https://github.com/APGGroeiFabriek/PIVT/blob/master/fabric-kube/samples/scaled-raft-tls/extended/network.yaml).
+
+First launch and populate your [cross cluster raft network](#cross-cluster-raft-network). As mentioned in adding peer organizations to a Raft network, you also need to enable persistence for peer and orderer pods. Pass the following additional flag to Helm install/upgrade commands: `-f samples/cross-cluster-raft-tls/persistence.yaml`. To recap, the reason is, after adding new organizations we need to update host aliases and this will force pods to restart and they will lose all the data if persistence is not enabled.
+
+At this point we can update the original configtx.yaml, crypto-config.yaml and network.yaml for the new organizations. First take backup of the originals:
+```
+# run in one
+rm -rf tmp && mkdir -p tmp && cp samples/cross-cluster-raft-tls/cluster-one/configtx.yaml samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml samples/cross-cluster-raft-tls/cluster-one/network.yaml tmp/
+
+# run in two
+rm -rf tmp && mkdir -p tmp && cp samples/cross-cluster-raft-tls/cluster-two/configtx.yaml samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml samples/cross-cluster-raft-tls/cluster-two/network.yaml tmp/
+
+# run in three
+rm -rf tmp && mkdir -p tmp && cp samples/cross-cluster-raft-tls/cluster-three/configtx.yaml samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml samples/cross-cluster-raft-tls/cluster-three/network.yaml tmp/
+```
+Then override with extended ones:
+```
+# run in one
+cp samples/cross-cluster-raft-tls/cluster-one/extended/* samples/cross-cluster-raft-tls/cluster-one/ && cp samples/cross-cluster-raft-tls/cluster-one/configtx.yaml hlf-kube/
+
+# run in two
+cp samples/cross-cluster-raft-tls/cluster-two/extended/* samples/cross-cluster-raft-tls/cluster-two/ && cp samples/cross-cluster-raft-tls/cluster-two/configtx.yaml hlf-kube/
+
+# run in three
+cp samples/cross-cluster-raft-tls/cluster-three/extended/* samples/cross-cluster-raft-tls/cluster-three/ && cp samples/cross-cluster-raft-tls/cluster-three/configtx.yaml hlf-kube/
+```
+Extend the certificates (no new organization on `cluster-two`, so we skip it. But won't hurt if you do it):
+```
+# run in one
+./extend.sh samples/cross-cluster-raft-tls/cluster-one
+
+# run in three
+./extend.sh samples/cross-cluster-raft-tls/cluster-three
+```
+Copy the public MSP certificates of `Valhalla` to `cluster-one`. Will be used for adding `Valhalla` to existing consortiums and channels and also for creating new channels:
+```
+# run in one
+cp -r ../fabric-kube-three/hlf-kube/crypto-config/peerOrganizations/valhalla.asgard/msp/* hlf-kube/crypto-config/peerOrganizations/valhalla.asgard/msp/
+```
+
+`extend.sh` script re-creates `hlf-kube/crypto-config` folder, so we need to re-copy external orderer's TLS certificates:
+```
+# run in three
+cp ../fabric-kube-two/hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/tlscacerts/* hlf-kube/crypto-config/ordererOrganizations/pivt.nl/msp/tlscacerts/
+```
+
+Then update the network parts _one_ and _three_ for the new crypto material and configtx and launch the new peers (skipping _two_ again): 
+```
+# run in one
+helm upgrade hlf-kube ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/persistence.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml --set peer.ingress.enabled=true --set orderer.ingress.enabled=true
+
+# run in three
+./prepare_chaincodes.sh samples/cross-cluster-raft-tls/cluster-three/ samples/chaincode/
+helm upgrade hlf-kube-three ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/persistence.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml --set peer.ingress.enabled=true
+```
+The _chaincodes_ used in _cluster-three_ has changed, that's why we ran the `prepare_chaincodes` script. So `even-simpler` chaincode is TAR archived and ready for future use.
+
+Now, collect host aliases in all 3 clusters and merge them exactly as explained in [cross cluster raft network](#cross-cluster-raft-network).
+
+Then update all networks parts again and wait for all pods are up and running.
+```
+# run in one
+helm upgrade hlf-kube ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/persistence.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml --set peer.ingress.enabled=true --set orderer.ingress.enabled=true
+
+# run in two
+helm upgrade hlf-kube-two ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/persistence.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml --set peer.externalService.enabled=true --set orderer.externalService.enabled=true
+
+# run in three
+helm upgrade hlf-kube-three ./hlf-kube -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/persistence.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml --set peer.ingress.enabled=true
+```
+
+Now the fun starts, we are ready to introduce our new peer organizations to Fabric network.
+
+We will do most of the work on _cluster-one_. Life will be easier if _cluster-one_ was running the majority of peer and orderer organizations but this is not the case. 
+
+If we just run the `peer-org-flow` in _cluster-one_ with the below command, it will fail:
+```
+# run in one
+helm template peer-org-flow/  -f samples/cross-cluster-raft-tls/cluster-one/configtx.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+```
+Feel free to try it, it will do no harm but just fail at `send-system-channel-config-update` step with the below error:
+```
+Error: got unexpected status: BAD_REQUEST -- error applying config update to existing channel 'testchainid': error authorizing update: error validating DeltaSet: policy for [Group]  /Channel/Consortiums/SecondConsortium not satisfied: implicit policy evaluation failed - 1 sub-policies were satisfied, but this policy requires 2 of the 'Admins' sub-policies to be satisfied
+```
+Quite expected as we are not the majority. 
+
+We need to create the config update(s) and sign it and send to other organization admins so they can also sign it and either apply or pass over to other organization admins. Quite a complicated process! Fortunately our flows do the heavy lifting for us.
+
+Run the `peer-org-flow` in _cluster-one_ with a little bit different settings:
+```
+# run in one
+helm template peer-org-flow/  --set flow.sendUpdate.channel.enabled=false --set flow.sendUpdate.systemChannel.enabled=false --set flow.channel.parallel=false -f samples/cross-cluster-raft-tls/cluster-one/configtx.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+```
+The different settings are:
+```
+--set flow.sendUpdate.systemChannel.enabled=false  -> do not send the config update for system (orderer) channel
+--set flow.sendUpdate.channel.enabled=false        -> do not send the config update for regular (user) channel(s)
+--set flow.channel.parallel=false                  -> run channel updates sequential, just to make our lives easier in later steps
+```
+
+The output will be something like below. And it will wait indefinitely at `send-system-channel-config-update` step.
+![Screenshot_peerorg_flow_waiting_sending_system_channel_update](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_peerorg_flow_waiting_sending_system_channel_update.png)
+
+Open a new terminal and check the logs of waiting step:
+```
+# run in new
+argo logs hlf-peer-orgs-755rx-2052162832
+```
+
+Output is:
+```
+not sending system channel config update, waiting for the file /continue
+manually copy the file /work/signed_update.pb from the Argo pod and exec "touch /continue" to continue..
+```
+
+Lets do what is said and copy the `signed config update` from the Argo pod:
+```
+# run in new
+kubectl cp -c main hlf-peer-orgs-755rx-2052162832:/work/signed_update.pb ~/system_channel_update.pb
+```
+The `config update` file you just got is signed by all orderer organizations running in this cluster and can be passed to other orderer organizations in any means. They can manually sign and apply it. 
+
+We will do it via `channel-update-flow`:
+```
+# run in two
+helm template channel-update-flow/ --set update.scope=orderer --set flow.createUpdate.systemChannel.enabled=false -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml  | argo submit - --namespace two --watch
+```
+Notice the arguments:
+```
+--set update.scope=orderer                            -> this is an orderer (system) channel update
+--set flow.createUpdate.systemChannel.enabled=false   -> do not create a systemChannel update but wait for user input
+```
+
+This flow will wait at `create-system-channel-config-update` as in the screenshot below:
+![Screenshot_channel_update_flow_waiting_system_channel_update](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_channel_update_flow_waiting_system_channel_update.png)
+
+Check the logs of waiting step:
+```
+# run in new
+argo --namespace two logs hlf-channel-update-jl2vw-1029362607
+```
+Output is:
+```
+not creating system channel config update, waiting for the file /continue
+manually copy the file /work/update.pb to Argo pod and exec "touch /continue" to continue..
+```
+Let's do what it says:
+```
+# run in new
+kubectl cp --namespace two ~/system_channel_update.pb -c main hlf-channel-update-jl2vw-1029362607:/work/update.pb
+kubectl exec --namespace two hlf-channel-update-jl2vw-1029362607 -c main -- touch /continue
+```
+The `channel-update-flow` at `two` will resume and finish. `Valhalla` is added to `SecondConsortium`:
+![Screenshot_channel_update_flow_resumed_completed](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_channel_update_flow_resumed_completed.png)
+
+If this signature is not enough for majority, you can provide the `--set flow.sendUpdate.systemChannel.enabled=false` to `channel-update-flow`, make it pause at send step instead of sending the update, copy the signed `channel-update` and pass it over to next organizations.
+
+Lets resume `peer-org-flow` which is still waiting:
+```
+# run in new
+kubectl exec hlf-peer-orgs-755rx-2052162832 -c main -- touch /continue
+```
+
+The `peer-org-flow` at `one` will resume and will start waiting at the next `send-system-channel-config-update` step:
+![Screenshot_peerorg_flow_waiting_sending_system_channel_update_2](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_peerorg_flow_waiting_sending_system_channel_update_2.png)
+
+We have 2 consortiums and adding 2 new peer organizations to both of them. So in total there are 4 `system-channel-config-updates`s. So repeat the procedure above 3 more times.
+
+I know it's complicated, it's Fabric! :/ And don't worry if you mess-up in a step. Delete the Argo flows and start over. The flows will just pass over the completed steps, remember it's declarative ;)
+
+Anyway, after `consortiums` step is completed in `peer-org-flow` in `one`, it wail wait for `send-channel-config-update` step for adding `Cimmeria` to channel `common`:
+![Screenshot_peerorg_flow_waiting_sending_channel_update](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_peerorg_flow_waiting_sending_channel_update.png)
+
+We will complete the channel update again via `channel-update-flow`:
+```
+# run in two
+helm template channel-update-flow/ --set update.scope=application --set flow.createUpdate.channel.enabled=false --set flow.channel.include={common} -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml  | argo submit - --namespace two --watch
+```
+Notice the arguments:
+```
+--set update.scope=application                  -> this is an application (user) channel update
+--set flow.createUpdate.channel.enabled=false   -> do not create a channel update but wait for user input
+--set flow.channel.include={common}             -> only work on `common` channel
+```
+
+As we did for the system channel above, we will copy the signed config update from the `peer-org-flow` and pass it to `channel-update-flow`:
+```
+# run in new
+kubectl cp -c main hlf-peer-orgs-qkb5n-893994435:/work/signed_update.pb ~/channel_update.pb
+
+kubectl cp --namespace two ~/channel_update.pb -c main hlf-channel-update-nw2mm-3307566681:/work/update.pb
+kubectl exec --namespace two hlf-channel-update-nw2mm-3307566681 -c main -- touch /continue
+```
+
+The `channel-update-flow` at `two` will resume and finish. `Cimmeria` is added to channel `common` (last signed by `Atlantis`):
+![Screenshot_channel_update_flow_resumed_completed_common](https://raft-fabric-kube.s3-eu-west-1.amazonaws.com/images/Screenshot_channel_update_flow_resumed_completed_common.png)
+
+Resume `peer-org-flow` again:
+```
+kubectl exec -c main  hlf-peer-orgs-qkb5n-893994435 -- touch /continue
+```
+It will next wait for `send-channel-config-update` step for adding `Valhalla` to channel `common`. Repeat the above procedure again to add `Valhalla` to channel `common`. After resuming `peer-org-flow`, it will finish without waiting any more thing.
+
+You may ask, why `peer-org-flow` added `Valhalla` to channel `common`, since `Valhalla` is not working on this part of Fabric network? 
+
+The reason is, `Valhalla` is listed as an `externalOrg` in [network.yaml](https://github.com/APGGroeiFabriek/PIVT/blob/master/fabric-kube/samples/cross-cluster-raft-tls/cluster-one/extended/network.yaml):
+```
+  channels:
+    - name: common
+      orgs: [Karga, Cimmeria]
+      externalOrgs: [Valhalla]
+```
+That `externalOrgs` are only consumed by `peer-org-flow` to add organizations to existing channels. `peer-org-flow` requires an `orderer` node running on that part of network. `Cluster-three` does not run an orderer node, so it cannot run `peer-org-flow`. That's why we added it on `cluster-one`.
+
+Next, create the new channels and join peers to them:
+
+__Note:__ Don't run these flows in parallel. Wait for completion of each one before proceeding to next one. In particular channels can only be created by cluster-one as only it has all the MSP certificates.
+```
+# run in one
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+
+# run in two
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml | argo submit - --namespace two --watch
+
+# run in three
+helm template channel-flow/ -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml | argo submit - --namespace three --watch
+```
+
+And finally run the chaincode flow to populate the chaincodes regarding new organizations:
+```
+# run in one
+helm template chaincode-flow/ --set chaincode.version=2.0 -f samples/cross-cluster-raft-tls/cluster-one/network.yaml -f samples/cross-cluster-raft-tls/cluster-one/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-one/hostAliases.yaml | argo submit - --watch
+
+# run in two
+helm template chaincode-flow/ --set chaincode.version=2.0 -f samples/cross-cluster-raft-tls/cluster-two/network.yaml -f samples/cross-cluster-raft-tls/cluster-two/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-two/hostAliases.yaml | argo submit - --namespace two --watch
+
+# run in three
+helm template chaincode-flow/ --set chaincode.version=2.0 -f samples/cross-cluster-raft-tls/cluster-three/network.yaml -f samples/cross-cluster-raft-tls/cluster-three/crypto-config.yaml -f samples/cross-cluster-raft-tls/cluster-three/hostAliases.yaml | argo submit - --namespace three --watch
+```
+Note, we increased the chaincode version. This is required to upgrade the chaincodes with new policies. Otherwise, new peers' endorsements will fail.
+
+Congratulations! You now succesfully added new peer organizations to a running Fabric network spread over three Kubernetes clusters. Hopefully provided mechanisms will cover all different kind of scenarios.
+
+Restore the original files:
+```
+# run in one
+cp tmp/configtx.yaml tmp/crypto-config.yaml tmp/network.yaml samples/cross-cluster-raft-tls/cluster-one/
+
+# run in two
+cp tmp/configtx.yaml tmp/crypto-config.yaml tmp/network.yaml samples/cross-cluster-raft-tls/cluster-two/
+
+# run in three
+cp tmp/configtx.yaml tmp/crypto-config.yaml tmp/network.yaml samples/cross-cluster-raft-tls/cluster-three/
 ```
 
 ### [Adding new peers to organizations](#adding-new-peers-to-organizations)
