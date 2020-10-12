@@ -19,7 +19,7 @@ hostAliases: []
 
 # common persistence settings
 persistence:
-  storageClass: default
+  storageClass: # default
 
 backup:
   # initiate backup procedure?
