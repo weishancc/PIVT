@@ -9,8 +9,9 @@ backup:
   # if not specified defaults to current date
   key: 
   target: 
-    # only azureBlobStorage for now, feel free to implement S3
+    # azureBlobStorage or awsS3
     type: azureBlobStorage
+    # settings for azureBlobStorage
     azureBlobStorage: 
       # storage account name
       accountName: 
@@ -18,6 +19,16 @@ backup:
       destination: hlf-backup 
       # credentials
       accessKey: 
+    # settings for awsS3
+    awsS3: 
+      # S3 bucket name
+      bucketName: 
+      # AWS region
+      region:
+      # AWS access_key_id
+      accessKeyId: 
+      # AWS secret_access_key
+      secretAccessKey: 
 
 flow:
   peer:

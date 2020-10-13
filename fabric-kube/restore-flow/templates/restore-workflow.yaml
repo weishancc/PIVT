@@ -130,7 +130,33 @@ spec:
       - name: peer-backup
         path: /hlf-backup/{{ $backupKey }}/PeerOrgs/{{ $org.Name }}/{{ $peer }}/
           
-{{- end }}
+{{- else if eq $.Values.backup.target.type "awsS3" }}
+    container:
+      image: amazon/aws-cli:latest
+      command: ["sh", "-c", "mkdir /hlf-backup && \
+                             \
+                             aws s3 cp \
+                             --recursive \
+                             s3://\
+                             {{ required "backup.target.awsS3.bucketName is required!" $.Values.backup.target.awsS3.bucketName }}\
+                             /{{ $backupKey }}/PeerOrgs/{{ $org.Name }}/{{ $peer }}/ \
+                             /hlf-backup/ \
+                             "]
+      env:
+        - name: AWS_DEFAULT_REGION
+          value: {{ required "backup.target.awsS3.region is required!" $.Values.backup.target.awsS3.region }}
+        - name: AWS_ACCESS_KEY_ID
+          value: {{ required "backup.target.awsS3.accessKeyId is required!" $.Values.backup.target.awsS3.accessKeyId }}
+        - name: AWS_SECRET_ACCESS_KEY
+          value: {{ required "backup.target.awsS3.secretAccessKey is required!" $.Values.backup.target.awsS3.secretAccessKey }}
+    outputs:
+      artifacts:
+      - name: peer-backup
+        path: /hlf-backup/
+
+{{- else }}
+  {{ fail (printf "Uknown backup.target.type: %s" $.Values.backup.target.type ) }}
+{{- end }} {{- /* backup.target.type */ -}}{{""}}
 
 {{- end }} {{- /* Peers */ -}}
 {{- end }} {{- /* Orgs */ -}}
@@ -180,9 +206,8 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
 
-    container:
-
 {{- if eq $.Values.backup.target.type "azureBlobStorage" }}    
+    container:
       image: microsoft/azure-cli:latest
       command: ["sh", "-c", "mkdir /hlf-backup && \
                              \
@@ -199,7 +224,34 @@ spec:
       artifacts:
       - name: orderer-backup
         path: /hlf-backup/{{ $backupKey }}/OrdererOrgs/{{ $org.Name }}/{{ $host.Hostname }}/{{ $orderer }}/
-{{- end }}
+
+{{- else if eq $.Values.backup.target.type "awsS3" }}
+    container:
+      image: amazon/aws-cli:latest
+      command: ["sh", "-c", "mkdir /hlf-backup && \
+                             \
+                             aws s3 cp \
+                             --recursive \
+                             s3://\
+                             {{ required "backup.target.awsS3.bucketName is required!" $.Values.backup.target.awsS3.bucketName }}\
+                             /{{ $backupKey }}/OrdererOrgs/{{ $org.Name }}/{{ $host.Hostname }}/{{ $orderer }}/ \
+                             /hlf-backup/ \
+                             "]
+      env:
+        - name: AWS_DEFAULT_REGION
+          value: {{ required "backup.target.awsS3.region is required!" $.Values.backup.target.awsS3.region }}
+        - name: AWS_ACCESS_KEY_ID
+          value: {{ required "backup.target.awsS3.accessKeyId is required!" $.Values.backup.target.awsS3.accessKeyId }}
+        - name: AWS_SECRET_ACCESS_KEY
+          value: {{ required "backup.target.awsS3.secretAccessKey is required!" $.Values.backup.target.awsS3.secretAccessKey }}
+    outputs:
+      artifacts:
+      - name: orderer-backup
+        path: /hlf-backup/
+
+{{- else }}
+  {{ fail (printf "Uknown backup.target.type: %s" $.Values.backup.target.type ) }}
+{{- end }} {{- /* backup.target.type */ -}}{{""}}
 
 {{- end }} {{- /* orderer */ -}}
 {{- end }} {{- /* org.Specs */ -}}
