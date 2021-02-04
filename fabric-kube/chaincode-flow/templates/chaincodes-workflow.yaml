@@ -235,20 +235,20 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
-          if peer chaincode checkinstalled --name {{ $chaincode.name }} --version {{ $version }}; then  
-            echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already installed to peer {{ $peer }}, exiting with 0' 
-            exit 0 
-          else 
-            result=$? 
-            echo "-- result is: $result" 
-            if test $result -ne 99; then 
-              echo "-- result is not 99, exiting with $result" 
-              exit $result 
-            fi 
-          fi 
+          #if peer chaincode checkinstalled --name {{ $chaincode.name }} --version {{ $version }}; then  
+          #  echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already installed to peer {{ $peer }}, exiting with 0' 
+          #  exit 0 
+          #else 
+          #  result=$? 
+          #  echo "-- result is: $result" 
+          #  if test $result -ne 99; then 
+          #    echo "-- result is not 99, exiting with $result" 
+          #    exit $result 
+          #  fi 
+          #fi 
 
           echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not installed to peer {{ $peer }}, will install..' 
 
@@ -332,40 +332,40 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
-          if peer chaincode checkinstantiated --name {{ $chaincode.name }} --version {{ $version }} --channelID {{ $channel.name }}; then  
-            echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already instantiated on channel {{ $channel.name }}, exiting with 0' 
-            exit 0 
-          else 
-            result=$? 
-            echo "-- result is: $result" 
-            if test $result -ne 99; then 
-              echo "-- result is not 99, exiting with $result" 
-              exit $result 
-            fi 
-          fi 
+          #if peer chaincode checkinstantiated --name {{ $chaincode.name }} --version {{ $version }} --channelID {{ $channel.name }}; then  
+          #  echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is already instantiated on channel {{ $channel.name }}, exiting with 0' 
+          #  exit 0 
+          #else 
+          #  result=$? 
+          #  echo "-- result is: $result" 
+          #  if test $result -ne 99; then 
+          #    echo "-- result is not 99, exiting with $result" 
+          #    exit $result 
+          #  fi 
+          #fi 
 
-          echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not instantiated on channel {{ $channel.name }}, will check another version..' 
+          #echo '-- Chaincode {{ $chaincode.name }} version {{ $version }} is not instantiated on channel {{ $channel.name }}, will check another version..' 
 
-          if peer chaincode checkinstantiated --name {{ $chaincode.name }} --channelID {{ $channel.name }}; then  
-            echo '-- Chaincode {{ $chaincode.name }} with another version is already instantiated on channel {{ $channel.name }}, will perform an upgrade chaincode transaction..' 
-            doUpgrade=true 
-          else 
-            result=$? 
-            echo "-- result is: $result" 
-            if test $result -ne 99; then 
-              echo "-- result is not 99, exiting with $result" 
-              exit $result 
-            fi 
-          fi 
+          #if peer chaincode checkinstantiated --name {{ $chaincode.name }} --channelID {{ $channel.name }}; then  
+          #  echo '-- Chaincode {{ $chaincode.name }} with another version is already instantiated on channel {{ $channel.name }}, will perform an upgrade chaincode transaction..' 
+          #  doUpgrade=true 
+          #else 
+          #  result=$? 
+          #  echo "-- result is: $result" 
+          #  if test $result -ne 99; then 
+          #    echo "-- result is not 99, exiting with $result" 
+          #    exit $result 
+          #  fi 
+          #fi 
 
           if [ -z "$doUpgrade" ]; then 
             echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' 
             peer chaincode instantiate --name {{ $chaincode.name }} --version {{ $version }} --lang {{ $language }} \
                   --channelID {{ $channel.name }} --orderer {{ $vars.ordererUrl }} \
-                  --policy "{{ $channel.policy }}" --ctor '{"Args":[""]}' \
+                  --policy "{{ $channel.policy }}" --ctor '{"Args":["init"]}' \
             {{- if $.Values.tlsEnabled }}
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
             {{- end }}
@@ -377,6 +377,9 @@ spec:
                   --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
             {{- end }}
           ; fi
+
+            echo 'Sleeping for 10 seconds..'
+            sleep 10
 
       volumeMounts:
         - mountPath: /hlf_config/orderer-tlsca
@@ -436,7 +439,7 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
           peer chaincode invoke -C {{ $channel.name }} -o {{ $vars.ordererUrl }} \

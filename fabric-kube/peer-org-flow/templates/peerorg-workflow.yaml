@@ -382,7 +382,7 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
       source: |
@@ -463,7 +463,7 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       source: |
           mkdir -p /work && 
@@ -536,7 +536,7 @@ spec:
       limit: {{ $.Values.retryCount }}
 
     container:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: ["sh", "-c", "peer channel signconfigtx -f /work/update.pb"]
 
       volumeMounts:
@@ -571,7 +571,7 @@ spec:
       limit: {{ $.Values.retryCount }}
         
     container:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
 
       {{- if $.Values.flow.sendUpdate.systemChannel.enabled }}
       command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $.Values.network.systemChannelID }} -o {{ $ordererAddress }}:7050 \
@@ -634,28 +634,31 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
       source: |
-          if >&2 peer channel checkexists --channelID {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
-              {{- if $.Values.tlsEnabled }}
-                  --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-              {{- end }}
-          ; then 
-            >&2 echo '-- channel {{ $channel.name }} exists' 
-            echo true
-            exit 0
-          else
-            result=$?
-            >&2 echo "-- result is: $result"
-            if test $result -ne 99; then
-              >&2 echo "-- result is not 99, exiting with $result"
-              exit $result
-            fi
-          fi
+          #if >&2 peer channel checkexists --channelID {{ $channel.name }} -o {{ $ordererAddress }}:7050 \
+          #    {{- if $.Values.tlsEnabled }}
+          #        --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+          #    {{- end }}
+          #; then 
+          #  >&2 echo '-- channel {{ $channel.name }} exists' 
+          #  echo true
+          #  exit 0
+          #else
+          #  result=$?
+          #  >&2 echo "-- result is: $result"
+          #  if test $result -ne 99; then
+          #    >&2 echo "-- result is not 99, exiting with $result"
+          #    exit $result
+          #  fi
+          #fi
 
-          echo false
+          #echo false
+          >&2 echo '-- channel {{ $channel.name }} exists'
+          echo true
+          exit 0
 
 
       volumeMounts:
@@ -701,7 +704,7 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       # we are echoing logs to stderr by >&2, since to stdout only true|false should be printed
       source: |
@@ -771,7 +774,7 @@ spec:
       limit: {{ $.Values.retryCount }}
         
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       source: |
         mkdir -p /work &&
@@ -848,7 +851,7 @@ spec:
     retryStrategy:
       limit: {{ $.Values.retryCount }}
     script:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [bash]
       source: |
           mkdir -p /work && 
@@ -921,7 +924,7 @@ spec:
       limit: {{ $.Values.retryCount }}
         
     container:
-      image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
+      image: thejokeri/fabric-tools:arm64-1.4.4
 
       {{- if $.Values.flow.sendUpdate.channel.enabled }}
       command: ["sh", "-c", "peer channel update -f /work/signed_update.pb -c {{ $channel.name }} -o {{ $ordererAddress }}:7050 \

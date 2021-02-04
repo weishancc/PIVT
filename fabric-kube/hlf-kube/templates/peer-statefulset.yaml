@@ -135,7 +135,7 @@ spec:
 
       # rsync-server container
       - name: rsync
-        image: axiom/rsync-server:latest
+        image: land007/rsync-server:latest
         command: ["sh", "-c", "mkdir -p /data && sleep 30 && \
           {{- if $.Values.peer.backup.enabled }}
                                tar -czf /data/peer.tar -C /var/hyperledger/production ledgersData/ chaincodes/ && \
@@ -168,7 +168,7 @@ spec:
 
       # rsync-server container
       - name: rsync
-        image: axiom/rsync-server:latest
+        image: land007/rsync-server:latest
         command: ["sh", "-c", "/entrypoint.sh rsync_server"]
                                
         volumeMounts:
@@ -253,7 +253,7 @@ spec:
       
       # Peer container
       - name: peer
-        image: hyperledger/fabric-peer:{{ $.Values.hyperledgerVersion }}
+        image: thejokeri/fabric-peer:arm64-1.4.4
         command: ["sh", "-c", "peer node start"]
 
         volumeMounts:
@@ -368,7 +368,7 @@ spec:
 
       # CouchDB container
       - name: couchdb
-        image: hyperledger/fabric-couchdb:{{ $.Values.couchdb.version }}
+        image: thejokeri/fabric-couchdb:arm64-0.4.18
 
         volumeMounts:
         - mountPath: /opt/couchdb/data/

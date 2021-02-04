@@ -4,3 +4,6 @@ wtf.yaml
 tmp/*
 **/hostAliases.yaml
 **/externalHostAliases.yaml
+tiller-rbac.yaml
+*.pem
+*.sh

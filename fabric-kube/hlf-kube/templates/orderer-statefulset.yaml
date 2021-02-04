@@ -75,7 +75,7 @@ spec:
 
       # rsync-server container
       - name: rsync
-        image: axiom/rsync-server:latest
+        image: land007/rsync-server:latest
         command: ["sh", "-c", "mkdir -p /data && sleep 30 && \
           {{- if $.Values.orderer.backup.enabled }}
                                tar -czf /data/orderer.tar -C /var/hyperledger/production/orderer/ --exclude='lost+found' .  && \
@@ -102,7 +102,7 @@ spec:
 
       # rsync-server container
       - name: rsync
-        image: axiom/rsync-server:latest
+        image: land007/rsync-server:latest
         command: ["sh", "-c", "/entrypoint.sh rsync_server"]
                                
         volumeMounts:
@@ -174,7 +174,7 @@ spec:
 
       # Orderer container
       - name: orderer
-        image: hyperledger/fabric-orderer:{{ $.Values.hyperledgerVersion }}
+        image: thejokeri/fabric-orderer:arm64-1.4.4
         command: ["sh", "-c", "orderer"]
 
         volumeMounts:

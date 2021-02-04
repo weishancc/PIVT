@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-hyperledgerVersion: 1.4.9
+hyperledgerVersion: 1.4.4
 
 # see the Raft sample in the README for how to enable TLS
 tlsEnabled: false
@@ -19,7 +19,7 @@ hostAliases: []
 
 # common persistence settings
 persistence:
-  storageClass: # default
+  storageClass: nfs-client
 
 backup:
   # initiate backup procedure?
@@ -49,7 +49,7 @@ peer:
       shim:   info
   persistence:
     enabled: false
-    size: 16Gi
+    size: 8Gi
   docker:
     dind: 
       # use a side car docker in docker container?
@@ -58,7 +58,7 @@ peer:
       image: docker:19.03.8-dind
       persistence:
         enabled: false
-        size: 16Gi
+        size: 8Gi
   ingress:
     enabled: false
     annotations:
@@ -92,12 +92,12 @@ peer:
     
 # CouchDB settings. applies to all CouchDB's
 couchdb:
-  version: 0.4.15
+  version: 0.4.18
   userName: 
   password:
   persistence:
     enabled: false
-    size: 16Gi
+    size: 1Gi
   ingress:
     enabled: false
   backup: 
@@ -117,7 +117,7 @@ orderer:
   launchPods: true
   persistence:
     enabled: false
-    size: 16Gi
+    size: 8Gi
   # when enabled, internal communication among Raft orderers are done at a different port
   # useful when you dont want to enable TLS globally (i.e for transparent load balancing)
   # has no effect if orderer type is not etcdraft
@@ -184,7 +184,7 @@ hlf-kafka:
   persistence:
     enabled: false
     storageClass: default
-    size: 16Gi
+    size: 8Gi
 
   configurationOverrides: 
     "default.replication.factor": 4  # given a 4 node Kafka cluster
@@ -201,7 +201,7 @@ hlf-kafka:
     persistence:
       enabled: false
       storageClass: default
-      size: 16Gi
+      size: 8Gi
     
     
       

@@ -6,7 +6,7 @@
 # see https://jira.hyperledger.org/browse/FAB-15026
 retryCount: 20
 
-hyperledgerVersion: 1.4.9
+hyperledgerVersion: 1.4.4
 
 # see the Raft sample in the README for how to enable TLS
 tlsEnabled: false
@@ -50,8 +50,8 @@ flow:
     # we invoke chaincode after instantiate/upgrade to force the peers to actually create the chaincode containers
     enabled: true 
     parallel: true
-    function: '{"function":"ping","Args":[""]}'
+    function: '{"function":"save_data","Args":["E_1","12-02-05","N","200","01"]}'
 
 chaincode:
   version: "1.0"
-  language: node
+  language: golang

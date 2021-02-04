@@ -10,18 +10,14 @@
 ################################################################################
 Organizations:
 
-    # SampleOrg defines an MSP using the sampleconfig.  It should never be used
-    # in production but may be used as a template for other definitions
-    - &Groeifabriek
-        # DefaultOrg defines the organization which is used in the sampleconfig
-        # of the fabric.git development environment
-        Name: GroeifabriekMSP
+    - &SGOrderer
+        Name: SGOrdererMSP
 
         # ID to load the MSP definition as
-        ID: GroeifabriekMSP
+        ID: SGOrdererMSP
 
         # MSPDir is the filesystem path which contains the MSP configuration
-        MSPDir: crypto-config/ordererOrganizations/groeifabriek.nl/msp
+        MSPDir: crypto-config/ordererOrganizations/sfiot.com/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -29,23 +25,21 @@ Organizations:
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('GroeifabriekMSP.member')"
+                Rule: "OR('SGOrdererMSP.member')"
             Writers:
                 Type: Signature
-                Rule: "OR('GroeifabriekMSP.member')"
+                Rule: "OR('SGOrdererMSP.member')"
             Admins:
                 Type: Signature
-                Rule: "OR('GroeifabriekMSP.admin')"
+                Rule: "OR('SGOrdererMSP.admin')"
 
-    - &Karga
-        # DefaultOrg defines the organization which is used in the sampleconfig
-        # of the fabric.git development environment
-        Name: KargaMSP
+    - &SGOrg1
+        Name: SGOrg1MSP
 
         # ID to load the MSP definition as
-        ID: KargaMSP
+        ID: SGOrg1MSP
 
-        MSPDir: crypto-config/peerOrganizations/aptalkarga.tr/msp
+        MSPDir: crypto-config/peerOrganizations/org1.sfiot.com/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -53,30 +47,30 @@ Organizations:
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('KargaMSP.admin', 'KargaMSP.peer', 'KargaMSP.client')"
+                Rule: "OR('SGOrg1MSP.admin', 'SGOrg1MSP.peer', 'SGOrg1MSP.client')"
             Writers:
                 Type: Signature
-                Rule: "OR('KargaMSP.admin', 'KargaMSP.client')"
+                Rule: "OR('SGOrg1MSP.admin', 'SGOrg1MSP.peer', 'SGOrg1MSP.client')"
             Admins:
                 Type: Signature
-                Rule: "OR('KargaMSP.admin')"
+                Rule: "OR('SGOrg1MSP.admin')"
 
         AnchorPeers:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--karga--peer0
+            - Host: peer0.org1.sfiot.com
               Port: 7051
 
-    - &Nevergreen
+    - &SGOrg2
         # DefaultOrg defines the organization which is used in the sampleconfig
         # of the fabric.git development environment
-        Name: NevergreenMSP
+        Name: SGOrg2MSP
 
         # ID to load the MSP definition as
-        ID: NevergreenMSP
+        ID: SGOrg2MSP
 
-        MSPDir: crypto-config/peerOrganizations/nevergreen.nl/msp
+        MSPDir: crypto-config/peerOrganizations/org2.sfiot.com/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -84,30 +78,30 @@ Organizations:
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('NevergreenMSP.admin', 'NevergreenMSP.peer', 'NevergreenMSP.client')"
+                Rule: "OR('SGOrg2MSP.admin', 'SGOrg2MSP.peer', 'SGOrg2MSP.client')"
             Writers:
                 Type: Signature
-                Rule: "OR('NevergreenMSP.admin', 'NevergreenMSP.client')"
+                Rule: "OR('SGOrg2MSP.admin', 'SGOrg2MSP.peer', 'SGOrg2MSP.client')"
             Admins:
                 Type: Signature
-                Rule: "OR('NevergreenMSP.admin')"
+                Rule: "OR('SGOrg2MSP.admin')"
 
         AnchorPeers:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--nevergreen--peer0
+            - Host: peer0.org2.sfiot.com
               Port: 7051
 
-    - &Atlantis
+    - &SGOrg3
         # DefaultOrg defines the organization which is used in the sampleconfig
         # of the fabric.git development environment
-        Name: AtlantisMSP
+        Name: SGOrg3MSP
 
         # ID to load the MSP definition as
-        ID: AtlantisMSP
+        ID: SGOrg3MSP
 
-        MSPDir: crypto-config/peerOrganizations/atlantis.com/msp
+        MSPDir: crypto-config/peerOrganizations/org3.sfiot.com/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -115,22 +109,23 @@ Organizations:
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('AtlantisMSP.admin', 'AtlantisMSP.peer', 'AtlantisMSP.client')"
+                Rule: "OR('SGOrg3MSP.admin', 'SGOrg3MSP.peer', 'SGOrg3MSP.client')"
             Writers:
                 Type: Signature
-                Rule: "OR('AtlantisMSP.admin', 'AtlantisMSP.client')"
+                Rule: "OR('SGOrg3MSP.admin', 'SGOrg3MSP.peer', 'SGOrg3MSP.client')"
             Admins:
                 Type: Signature
-                Rule: "OR('AtlantisMSP.admin')"
+                Rule: "OR('SGOrg3MSP.admin')"
 
         AnchorPeers:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: hlf-peer--atlantis--peer0
+            - Host: peer0.org3.sfiot.com
               Port: 7051
 
 
+################################################################################
 ################################################################################
 #
 #   SECTION: Capabilities
@@ -184,16 +179,16 @@ Capabilities:
 
 ################################################################################
 #
-#   APPLICATION
+#   SECTION: Application
 #
-#   This section defines the values to encode into a config transaction or
-#   genesis block for application-related parameters.
+#   - This section defines the values to encode into a config transaction or
+#   genesis block for application related parameters
 #
 ################################################################################
 Application: &ApplicationDefaults
 
-    # Organizations lists the orgs participating on the application side of the
-    # network.
+    # Organizations is the list of orgs which are defined as participants on
+    # the application side of the network
     Organizations:
 
     # Policies defines the set of policies at this level of the config tree
@@ -227,11 +222,12 @@ Application: &ApplicationDefaults
 Orderer: &OrdererDefaults
 
     # Orderer Type: The orderer implementation to start
-    # Available types are "solo" and "kafka"
-    OrdererType: solo
+    # Available types are "solo", "kafka" and "etcdraft"
+    OrdererType: etcdraft
 
     Addresses:
-        - hlf-orderer--groeifabriek--orderer0:7050
+        # - hlf-orderer--groeifabriek-0:7050
+        - orderer.sfiot.com:7050
 
     # Batch Timeout: The amount of time to wait before creating a batch
     BatchTimeout: 1s
@@ -250,6 +246,54 @@ Orderer: &OrdererDefaults
         # the serialized messages in a batch. A message larger than the preferred
         # max bytes will result in a batch larger than preferred max bytes.
         PreferredMaxBytes: 1024 KB
+
+    EtcdRaft:
+        Consenters:
+        - Host: orderer.sfiot.com
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer.sfiot.com/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer.sfiot.com/tls/server.crt
+        - Host: orderer2.sfiot.com
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer2.sfiot.com/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer2.sfiot.com/tls/server.crt
+        - Host: orderer3.sfiot.com
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer3.sfiot.com/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer3.sfiot.com/tls/server.crt
+        - Host: orderer4.sfiot.com
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer4.sfiot.com/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer4.sfiot.com/tls/server.crt
+        - Host: orderer5.sfiot.com
+          Port: 7050
+          ClientTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer5.sfiot.com/tls/server.crt
+          ServerTLSCert: crypto-config/ordererOrganizations/sfiot.com/orderers/orderer5.sfiot.com/tls/server.crt
+        # Options to be specified for all the etcd/raft nodes. The values here
+        # are the defaults for all new channels and can be modified on a
+        # per-channel basis via configuration updates.
+        Options:
+            # TickInterval is the time interval between two Node.Tick invocations.
+            TickInterval: 500ms
+
+            # ElectionTick is the number of Node.Tick invocations that must pass
+            # between elections. That is, if a follower does not receive any
+            # message from the leader of current term before ElectionTick has
+            # elapsed, it will become candidate and start an election.
+            # ElectionTick must be greater than HeartbeatTick.
+            ElectionTick: 10
+
+            # HeartbeatTick is the number of Node.Tick invocations that must
+            # pass between heartbeats. That is, a leader sends heartbeat
+            # messages to maintain its leadership every HeartbeatTick ticks.
+            HeartbeatTick: 1
+
+            # MaxInflightBlocks limits the max number of in-flight append messages
+            # during optimistic replication phase.
+            MaxInflightBlocks: 5
+
+            # SnapshotIntervalSize defines number of bytes per which a snapshot is taken
+            SnapshotIntervalSize: 20 MB
 
     # Organizations is the list of orgs which are defined as participants on
     # the orderer side of the network
@@ -327,18 +371,14 @@ Profiles:
         Orderer:
             <<: *OrdererDefaults
             Organizations:
-                - *Groeifabriek
+                - *SGOrderer
                           
         Consortiums:
             TheConsortium:
                 Organizations:
-                    - *Karga
-                    - *Nevergreen
-                    - *Atlantis
-                    
-            SecondConsortium:
-                Organizations:
-                    - *Karga
+                    - *SGOrg1
+                    - *SGOrg2
+                    - *SGOrg3
 
     common:
         Consortium: TheConsortium
@@ -346,15 +386,6 @@ Profiles:
         Application:
             <<: *ApplicationDefaults
             Organizations:
-                - *Karga
-                - *Nevergreen
-                - *Atlantis
-
-    private-karga-atlantis:
-        Consortium: TheConsortium
-        <<: *ChannelDefaults
-        Application:
-            <<: *ApplicationDefaults
-            Organizations:
-                - *Karga
-                - *Atlantis
+                - *SGOrg1
+                - *SGOrg2
+                - *SGOrg3

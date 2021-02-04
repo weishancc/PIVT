@@ -213,24 +213,24 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
-          if peer channel checkexists --channelID {{ $channel.name }} -o {{ $vars.ordererUrl }} \
-                {{- if $.Values.tlsEnabled }}
-                    --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-                {{- end }}
-            ; then 
-              echo '-- Channel {{ $channel.name }} already exists, exiting with 0' 
-              exit 0 
-            else 
-              result=$? 
-              echo "-- result is: $result" 
-              if test $result -ne 99; then 
-                echo "-- result is not 99, exiting with $result" 
-                exit $result 
-              fi 
-            fi 
+          #if peer channel checkexists --channelID {{ $channel.name }} -o {{ $vars.ordererUrl }} \
+          #      {{- if $.Values.tlsEnabled }}
+          #          --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+          #      {{- end }}
+          #  ; then 
+          #    echo '-- Channel {{ $channel.name }} already exists, exiting with 0' 
+          #    exit 0 
+          #  else 
+          #    result=$? 
+          #    echo "-- result is: $result" 
+          #    if test $result -ne 99; then 
+          #      echo "-- result is not 99, exiting with $result" 
+          #      exit $result 
+          #    fi 
+          #  fi 
 
             echo '-- Channel {{ $channel.name }} does not exists, will create..' 
 
@@ -299,20 +299,20 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
-          if peer channel checkjoined --channelID {{ $channel.name }}; then  
-            echo '-- Peer {{ $peer }} already joined to channel {{ $channel.name }}, exiting with 0' 
-            exit 0 
-          else 
-            result=$? 
-            echo "-- result is: $result" 
-            if test $result -ne 99; then 
-              echo "-- result is not 99, exiting with $result" 
-              exit $result 
-            fi 
-          fi 
+          #if peer channel checkjoined --channelID {{ $channel.name }}; then  
+          #  echo '-- Peer {{ $peer }} already joined to channel {{ $channel.name }}, exiting with 0' 
+          #  exit 0 
+          #else 
+          #  result=$? 
+          #  echo "-- result is: $result" 
+          #  if test $result -ne 99; then 
+          #    echo "-- result is not 99, exiting with $result" 
+          #    exit $result 
+          #  fi 
+          #fi 
 
           echo '-- Peer {{ $peer }} did not join to channel {{ $channel.name }}, will join..' 
 
@@ -376,24 +376,24 @@ spec:
       limit: {{ $.Values.retryCount }}
     script:
       # image: hyperledger/fabric-tools:{{ $.Values.hyperledgerVersion }}
-      image: raft/hl-fabric-tools-extended:1.4.3
+      image: thejokeri/fabric-tools:arm64-1.4.4
       command: [sh]
       source: |
-          if peer channel checkanchors --channelID {{ $channel.name }} --orgID {{ $org.Name }}MSP -o {{ $vars.ordererUrl }} \
-              {{- if $.Values.tlsEnabled }}
-                  --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
-              {{- end }}
-          ; then 
-            echo '-- AnchorPeers are already configured for organization {{ $org.Name }}, exiting with 0' 
-            exit 0 
-          else 
-            result=$? 
-            echo "-- result is: $result" 
-            if test $result -ne 99; then 
-              echo "-- result is not 99, exiting with $result" 
-              exit $result 
-            fi 
-          fi 
+          #if peer channel checkanchors --channelID {{ $channel.name }} --orgID {{ $org.Name }}MSP -o {{ $vars.ordererUrl }} \
+          #    {{- if $.Values.tlsEnabled }}
+          #        --tls --cafile /hlf_config/orderer-tlsca/tlscacert.pem \
+          #    {{- end }}
+          #; then 
+          #  echo '-- AnchorPeers are already configured for organization {{ $org.Name }}, exiting with 0' 
+          #  exit 0 
+          #else 
+          #  result=$? 
+          #  echo "-- result is: $result" 
+          #  if test $result -ne 99; then 
+          #    echo "-- result is not 99, exiting with $result" 
+          #    exit $result 
+          #  fi 
+          #fi 
           
           echo '-- AnchorPeers are not configured for organization {{ $org.Name }}, will configure..' 
           
@@ -407,6 +407,10 @@ spec:
           configtxlator proto_decode --input /work/config_block.pb --type common.Block | jq .data.data[0].payload.data.config > /work/config.json && 
           echo '-- trimmed envelope from config block and converted to json' && 
           
+          echo '-- Installing yq and jq..' && 
+          apt-get update && apt-get -y install python3-pip && pip3 install yq &&  apt-get install jq &&
+          echo '-- Installed successfully..' && 
+
           /hlf-scripts/attach_anchor_peers.sh {{ $org.Name }}MSP /hlf_config/configtx.yaml /work/config.json /work/updated_config.json && 
           /hlf-scripts/prepare_config_update_block.sh {{ $channel.name }} /work/config.json /work/updated_config.json /work/update.pb && 
           

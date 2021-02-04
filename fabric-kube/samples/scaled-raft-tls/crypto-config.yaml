@@ -5,40 +5,37 @@ OrdererOrgs:
   # ---------------------------------------------------------------------------
   # Orderer
   # ---------------------------------------------------------------------------
-  - Name: Groeifabriek
-    Domain: groeifabriek.nl
+  - Name: SGOrderer
+    Domain: sfiot.com
     EnableNodeOUs: true
     Specs:
-      - Hostname: orderer0
-      - Hostname: orderer1
-  - Name: Pivt
-    Domain: pivt.nl
-    EnableNodeOUs: true
-    Specs:
-      - Hostname: orderer0
-      
+      - Hostname: orderer
+      - Hostname: orderer2
+      - Hostname: orderer3
+      - Hostname: orderer4
+      - Hostname: orderer5
 # ---------------------------------------------------------------------------
 # "PeerOrgs" - Definition of organizations managing peer nodes
 # ---------------------------------------------------------------------------
 PeerOrgs:
-  - Name: Karga
-    Domain: aptalkarga.tr
+  - Name: SGOrg1
+    Domain: org1.sfiot.com
     EnableNodeOUs: true
     Template:
       Count: 2
     Users:
       Count: 1
   
-  - Name: Nevergreen
-    Domain: nevergreen.nl
+  - Name: SGOrg2
+    Domain: org2.sfiot.com
     EnableNodeOUs: true
     Template:
       Count: 2
     Users:
       Count: 1
 
-  - Name: Atlantis
-    Domain: atlantis.com
+  - Name: SGOrg3
+    Domain: org3.sfiot.com
     EnableNodeOUs: true
     Template:
       Count: 2
