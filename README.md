@@ -41,6 +41,7 @@ helm dependency update ./hlf-kube/
 ---
 NFS provisioner
 ```
+helm repo add nfs-subdir-external-provisioner https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
 helm install nfs-subdir-external-provisioner . \
 --set nfs.server=YOUR-NFS-SERVER-IP \
 --set nfs.path=YOUR-NFS-SERVER-PATH \
@@ -65,7 +66,7 @@ helm install argo-artifacts minio/minio \
 --set defaultBucket.enabled=true \
 --set defaultBucket.name=my-bucket 
 ```
-Then configure the (configmap)[https://github.com/argoproj/argo-workflows/blob/master/docs/configure-artifact-repository.md]
+Then configure the [configmap](https://github.com/argoproj/argo-workflows/blob/master/docs/configure-artifact-repository.md)
 ```
 kubectl edit configmap workflow-controller-configmap -n argo
 ```
