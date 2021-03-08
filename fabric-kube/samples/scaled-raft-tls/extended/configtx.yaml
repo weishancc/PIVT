@@ -140,10 +140,10 @@ Organizations:
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('SGOrg4MSP.admin', 'SGOrg4MSP.peer', 'SGOrg3MSP.client')"
+                Rule: "OR('SGOrg4MSP.admin', 'SGOrg4MSP.peer', 'SGOrg4MSP.client')"
             Writers:
                 Type: Signature
-                Rule: "OR('SGOrg4MSP.admin', 'SGOrg4MSP.peer', 'SGOrg3MSP.client')"
+                Rule: "OR('SGOrg4MSP.admin', 'SGOrg4MSP.peer', 'SGOrg4MSP.client')"
             Admins:
                 Type: Signature
                 Rule: "OR('SGOrg4MSP.admin')"

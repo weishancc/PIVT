@@ -361,7 +361,7 @@ spec:
           #  fi 
           #fi 
 
-          doUpgrade=true
+          #doUpgrade=true
 
           if [ -z "$doUpgrade" ]; then 
             echo '-- Chaincode {{ $chaincode.name }} is not instantiated on channel {{ $channel.name }}, will instantiate..' 
